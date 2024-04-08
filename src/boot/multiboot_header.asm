@@ -12,4 +12,4 @@ align 4
     dd CHECKSUM
     dd 0, 0, 0, 0, 0
     dd 0
-    dd 1920, 1080, 32
+    dd 1280, 720, 32

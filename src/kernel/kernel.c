@@ -2,6 +2,7 @@
 #include "../../src/include/bootinfo.h"
 #include "../../src/include/io.h"
 #include "../../src/include/graphics.h"
+#include "../../src/include/pic.h"
 
 void write_char_to_serial(char character) {
     outb(0x3f8, character);
@@ -16,6 +17,7 @@ void write_string_to_serial(char* string) {
 }
 
 void kernelmain(BootInformationFormat* multiboot_structure, unsigned int magicnumber) {
+    PIC_remap(0x20, 0x28);
     if (magicnumber != 0x2badb002) {
         write_string_to_serial("Magic number is wrong");
     }
@@ -33,7 +35,7 @@ void kernelmain(BootInformationFormat* multiboot_structure, unsigned int magicnu
             init_framebuffer(multiboot_structure);
             init_text_mode(multiboot_structure);
             fill_screen(0x00);
-            asm volatile ("int $0x1");
+
         } else if (type = 0x2) {
             //return;
         }

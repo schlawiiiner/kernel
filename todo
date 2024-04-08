@@ -1,0 +1,1 @@
+- spurious interrupt by the PIC may cause an exception

@@ -69,5 +69,6 @@ extern char nine_char[16];
 
 extern char colon_char[16];
 extern char semicolon_char[16];
+extern char point_char[16];
 extern char* ascii_chars[128];
 #endif

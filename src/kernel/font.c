@@ -1100,6 +1100,23 @@ char semicolon_char[16] = { 0b00000000,
                             0b00001100,
                             0b00000000,
                             0b00000000};
+
+char point_char[16] = { 0b00000000,
+                        0b00000000,
+                        0b00000000,
+                        0b00000000,
+                        0b00000000,
+                        0b00000000,
+                        0b00000000,
+                        0b00000000,
+                        0b00000000,
+                        0b00000000,
+                        0b00000110,
+                        0b00000110,
+                        0b00000000,
+                        0b00000000,
+                        0b00000000};
+
           
 
 char* ascii_chars[128] =    {Not_implemented_yet,
@@ -1148,7 +1165,7 @@ char* ascii_chars[128] =    {Not_implemented_yet,
                             Not_implemented_yet,
                             Not_implemented_yet,
                             Not_implemented_yet,
-                            Not_implemented_yet,
+                            point_char,
                             Not_implemented_yet,
                             zero_char,
                             one_char,

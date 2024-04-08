@@ -24,6 +24,7 @@ extern hypervisor_injection_exception
 extern vmm_communication_exception
 extern security_exception
 extern fpu_error_interrupt
+extern pic_handler
 
 %macro PUSH_ALL_REGS 0
     push rax
@@ -263,6 +264,161 @@ int30:
     iret
 int31:
 
+; ---------------------------------------- PIC ------------------------------------------------------
+int32:
+    cli
+    cld
+    PUSH_ALL_REGS
+    mov rdi, 32
+    call pic_handler
+    POP_ALL_REGS
+    sti
+    iretq
+int33:
+    cli
+    cld
+    PUSH_ALL_REGS
+    mov rdi, 33
+    call pic_handler
+    POP_ALL_REGS
+    sti
+    iretq
+int34:
+    cli
+    cld
+    PUSH_ALL_REGS
+    mov rdi, 34
+    call pic_handler
+    POP_ALL_REGS
+    iretq
+int35:
+    cli
+    cld
+    PUSH_ALL_REGS
+    mov rdi, 35
+    call pic_handler
+    POP_ALL_REGS
+    iretq
+int36:
+    cli
+    cld
+    PUSH_ALL_REGS
+    mov rdi, 36
+    call pic_handler
+    POP_ALL_REGS
+    iretq
+int37:
+    cli
+    cld
+    PUSH_ALL_REGS
+    mov rdi, 37
+    call pic_handler
+    POP_ALL_REGS
+    iretq
+int38:
+    cli
+    cld
+    PUSH_ALL_REGS
+    mov rdi, 38
+    call pic_handler
+    POP_ALL_REGS
+    iretq
+int39:
+    cli
+    cld
+    PUSH_ALL_REGS
+    mov rdi, 39
+    call pic_handler
+    POP_ALL_REGS
+    iretq
+int40:
+    cli
+    cld
+    PUSH_ALL_REGS
+    mov rdi, 40
+    call pic_handler
+    POP_ALL_REGS
+    iretq
+int41:
+    cli
+    cld
+    PUSH_ALL_REGS
+    mov rdi, 41
+    call pic_handler
+    POP_ALL_REGS
+    iret
+int42:
+    cli
+    cld
+    PUSH_ALL_REGS
+    mov rdi, 42
+    call pic_handler
+    POP_ALL_REGS
+    iret
+int43:
+    cli
+    cld
+    PUSH_ALL_REGS
+    mov rdi, 43
+    call pic_handler
+    POP_ALL_REGS
+    iret
+int44:
+    cli
+    cld
+    PUSH_ALL_REGS
+    mov rdi, 44
+    call pic_handler
+    POP_ALL_REGS
+    iret
+int45:
+    cli
+    cld
+    PUSH_ALL_REGS
+    mov rdi, 45
+    call pic_handler
+    POP_ALL_REGS
+    iret
+int46:
+    cli
+    cld
+    PUSH_ALL_REGS
+    mov rdi, 46
+    call pic_handler
+    POP_ALL_REGS
+    iret
+int47:
+    cli
+    cld
+    PUSH_ALL_REGS
+    mov rdi, 47
+    call pic_handler
+    POP_ALL_REGS
+    iret
+int48:
+    cli
+    cld
+    PUSH_ALL_REGS
+    mov rdi, 48
+    call pic_handler
+    POP_ALL_REGS
+    iret
+int49:
+    cli
+    cld
+    PUSH_ALL_REGS
+    mov rdi, 49
+    call pic_handler
+    POP_ALL_REGS
+    iret
+
+
+
+
+
+
+
+
 
 exception_halt_main:
     cli
@@ -300,7 +456,7 @@ make_entry_interrupt:
     ret
 
 enable_interrupts:
-
+jmp clear_IDT
 disable_pic: ; otherwise the PIC-timer would trigger an double fault (it is mapped to 0x8)
     mov dx, 0x21 ;PIC1 DATA
     mov al, 0xff
@@ -421,6 +577,54 @@ make_entries:
     ;mov rcx, 16*31
     ;call make_entry
 
+    mov rax, int32 
+    mov rcx, 16*32
+    call make_entry
+    mov rax, int33 
+    mov rcx, 16*33
+    call make_entry
+    mov rax, int34 
+    mov rcx, 16*34
+    call make_entry
+    mov rax, int35 
+    mov rcx, 16*35
+    call make_entry
+    mov rax, int36 
+    mov rcx, 16*36
+    call make_entry
+    mov rax, int37 
+    mov rcx, 16*37
+    call make_entry
+    mov rax, int38 
+    mov rcx, 16*38
+    call make_entry
+    mov rax, int39 
+    mov rcx, 16*39
+    call make_entry
+    mov rax, int40 
+    mov rcx, 16*40
+    call make_entry
+    mov rax, int41 
+    mov rcx, 16*41
+    call make_entry
+    mov rax, int42 
+    mov rcx, 16*42
+    call make_entry
+    mov rax, int43 
+    mov rcx, 16*43
+    call make_entry
+    mov rax, int44 
+    mov rcx, 16*44
+    call make_entry
+    mov rax, int45 
+    mov rcx, 16*45
+    call make_entry
+    mov rax, int46 
+    mov rcx, 16*46
+    call make_entry
+    mov rax, int47 
+    mov rcx, 16*47
+    call make_entry
     
 load_IDT:
     cli

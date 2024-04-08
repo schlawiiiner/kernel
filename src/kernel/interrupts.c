@@ -1,5 +1,36 @@
 #include "../../src/include/uint.h"
 #include "../../src/include/graphics.h"
+#include "../../src/include/pic.h"
+
+void pic_handler(uint64_t irq) {
+    if (irq == 0x20) {
+        printf(".", 0xff00, 0x0);
+    } else if (irq == 0x21) {
+        uint8_t scancode  = inb(0x60);
+        if (scancode == 0x02) {
+            printf("1", 0xff00, 0x00);
+        } else if (scancode == 0x03) {
+            printf("2", 0xff00, 0x00);
+        } else if (scancode == 0x04) {
+            printf("3", 0xff00, 0x00);
+        } else if (scancode == 0x05) {
+            printf("4", 0xff00, 0x00);
+        } else if (scancode == 0x06) {
+            printf("5", 0xff00, 0x00);
+        } else if (scancode == 0x07) {
+            printf("6", 0xff00, 0x00);
+        } else if (scancode == 0x08) {
+            printf("7", 0xff00, 0x00);
+        } else if (scancode == 0x09) {
+            printf("8", 0xff00, 0x00);
+        } else if (scancode == 0x0a) {
+            printf("9", 0xff00, 0x00);
+        } else if (scancode == 0x0b) {
+            printf("0", 0xff00, 0x00);
+        }
+    }
+    PIC_sendEOI(irq);
+}
 
 void kernel_panic(char* str, int error_code, uint64_t*rsp) {
     printf(str, 0xff0000, 0x0);
