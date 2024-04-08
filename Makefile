@@ -3,17 +3,27 @@ NASMFLAGS = -felf64
 GCCFLAGS = -nostdlib -fno-builtin -fno-exceptions -ffreestanding -mno-red-zone -fno-leading-underscore 
 INCLUDES = -I$(PWD)
 
-objects = bin/loader.o bin/kernel.o
+objects = bin/loader.o bin/kernel.o bin/interrupts.o bin/graphics.o bin/font.o
+asm_files = src/boot/check.asm src/boot/interrupts.asm src/boot/loader.asm src/boot/multiboot_header.asm src/boot/paging.asm src/boot/sysvar.asm
 
 bin/kernel.o: src/kernel/kernel.c
-	@gcc $(GCCFLAGS) $(INCLUDES) -o $@ -c $<  
+	@gcc $(GCCFLAGS) $(INCLUDES) -O2 -o $@ -c $<  
 
-bin/loader.o: src/boot/loader.asm
-	@nasm $(NASMFLAGS) $< -o $@ 
+bin/interrupts.o: src/kernel/interrupts.c
+	@gcc $(GCCFLAGS) $(INCLUDES) -O2 -o $@ -c $<  
 
+bin/graphics.o: src/kernel/graphics.c
+	@gcc $(GCCFLAGS) $(INCLUDES) -O2 -o $@ -c $< 
+
+bin/font.o: src/kernel/font.c
+	@gcc $(GCCFLAGS) $(INCLUDES) -O2 -o $@ -c $< 
+
+bin/loader.o: $(asm_files)
+	@nasm $(NASMFLAGS) src/boot/loader.asm -o $@ 
 
 bin/mykernel.bin: linker.ld $(objects)
 	@ld $(LDFLAGS) -T linker.ld -o $@ $(objects)
+
 
 build: bin/mykernel.bin
 	@make -s bin/mykernel.bin
@@ -33,4 +43,7 @@ qemu:
 	@grub-mkrescue -o test/boot/mykernel.iso test 2> /dev/null
 	@qemu-system-x86_64 -cdrom test/boot/mykernel.iso -accel kvm -serial file:serial.log
 	@rm -r test
+
+dissasemble: bin/mykernel.bin
+	@objdump -s -D $< > dissasembly.txt
 
