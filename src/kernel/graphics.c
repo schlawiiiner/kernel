@@ -3,19 +3,19 @@
 #include "../../src/include/bootinfo.h"
 
 struct __attribute__((packed)) textmode {
-    uint16_t width;
-    uint16_t height;
-    uint16_t x_position;
-    uint16_t y_position;
+    uint64_t width;
+    uint64_t height;
+    uint64_t x_position;
+    uint64_t y_position;
 };
 
 typedef struct textmode textmode;
 
 struct __attribute__((packed)) framebuffer {
     uint32_t* address;
-    uint32_t pitch;
-    uint32_t width;
-    uint32_t height;
+    uint64_t pitch;
+    uint64_t width;
+    uint64_t height;
 };
 
 typedef struct framebuffer framebuffer;
@@ -23,7 +23,7 @@ typedef struct framebuffer framebuffer;
 
 
 void put_pixel(int x, int y, uint32_t color) {
-    framebuffer* fb = (framebuffer*)0x100038;
+    framebuffer* fb = (framebuffer*)0x100050;
     int width = (int)(fb->width);
     fb->address[x + width*y] = color;
 }
@@ -49,7 +49,7 @@ void put_char(uint32_t foreground, uint32_t background, char character) {
     }
 }
 void fill_screen(uint32_t color) {
-    framebuffer* fb = (framebuffer *)0x100038;
+    framebuffer* fb = (framebuffer *)0x100050;
     for (int x = 0; x < fb->width; x++) {
         for (int y = 0; y < fb->height; y++) {
             put_pixel(x, y, color);
@@ -82,7 +82,7 @@ void printhex(uint64_t integer, uint32_t foreground, uint32_t background) {
     }
 }
 
-void init_text_mode(BootInformationFormat* multiboot_structure) {
+void init_text_mode(FramebufferInfo* multiboot_structure) {
     textmode *tm = (textmode*)0x100030;
     tm->width = (uint16_t)multiboot_structure->framebuffer_width/8;
     tm->height = (uint16_t)multiboot_structure->framebuffer_height/16;
@@ -90,8 +90,8 @@ void init_text_mode(BootInformationFormat* multiboot_structure) {
     tm->y_position = 0;
 }
 
-void init_framebuffer(BootInformationFormat* multiboot_strucure) {
-    framebuffer *fb = (framebuffer*)0x100038;
+void init_framebuffer(FramebufferInfo* multiboot_strucure) {
+    framebuffer *fb = (framebuffer*)0x100050;
     fb->address = (uint32_t*)multiboot_strucure->framebuffer_addr;
     fb->width = multiboot_strucure->framebuffer_width;
     fb->height = multiboot_strucure->framebuffer_height;

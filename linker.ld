@@ -4,9 +4,9 @@ SECTIONS
 {
     . = 0x0100000;
 
-    .multiboot :
+    .multiboot2 :
     {
-        *(.multiboot)
+        *(.multiboot2)
     }
 
     .sysvar :

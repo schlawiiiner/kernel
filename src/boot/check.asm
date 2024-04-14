@@ -2,7 +2,7 @@ bits 32
 
 section .text
 check_multiboot:
-    cmp eax, 0x2badb002
+    cmp eax, 0x36d76289
     jne .no_multiboot
     ret
 .no_multiboot:

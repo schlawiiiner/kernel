@@ -1,7 +1,7 @@
 %define CODE_SEG     0x0008
 %define DATA_SEG     0x0010
 
-%include "src/boot/multiboot_header.asm"
+%include "src/boot/multiboot2.asm"
 global loader
 extern kernelmain
 bits 32
@@ -36,7 +36,6 @@ interrupts_enabled:
     mov edi, [boot_info]
     mov esi, [magic]
     call kernelmain
-    bits 32
 loop:
     hlt
     jmp loop
