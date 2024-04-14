@@ -4,33 +4,13 @@
 #include "../../src/include/graphics.h"
 #include "../../src/include/pic.h"
 
-void write_char_to_serial(char character) {
-    outb(0x3f8, character);
-}
 
-void write_string_to_serial(char* string) {
-    int i = 0;
-    while (string[i] != '\0') {
-        write_char_to_serial(string[i]);
-        i++;
-    }
-}
+#define BOOT_INFO_STRUCTURE 0x100080
 
-void write_hex_to_serial(uint64_t integer) {
-    write_string_to_serial("0x");
-    for (int i = 15; i >= 0; i--) {
-        int val = (int)((integer >> i*4) & 0xf);
-        if (val <= 9) {
-            write_char_to_serial((char)(val + 48));
-        } else {
-            write_char_to_serial((val + 87));
-        }
-    }
-}
 void parse_boot_information(BootInformation* boot_information) {
     uint64_t base = (uint64_t) boot_information;
     uint64_t offset = 0x8;
-    BootInformationStructure * boot_information_structure = (BootInformationStructure*)0x100070;
+    BootInformationStructure * boot_information_structure = (BootInformationStructure*)BOOT_INFO_STRUCTURE;
     while (offset < boot_information->total_size) {
         BasicTagStructure * tag = (BasicTagStructure*)(base+offset);
         switch (tag->type) {
@@ -130,11 +110,11 @@ void parse_boot_information(BootInformation* boot_information) {
 
 void kernelmain(BootInformation* multiboot_structure, unsigned int magicnumber) {
     parse_boot_information(multiboot_structure);
-    BootInformationStructure * boot_information_structure = (BootInformationStructure*)0x100070;
+    BootInformationStructure * boot_information_structure = (BootInformationStructure*)BOOT_INFO_STRUCTURE;
     if ((boot_information_structure->present_flags & 0x100) >> 8) {
         init_framebuffer(boot_information_structure->framebuffer_info);
         init_text_mode(boot_information_structure->framebuffer_info);
     }
-    printf("kernel was booted by: ", 0xff00, 0x00);
-    printf((char *)(boot_information_structure->boot_loader_name) + 8, 0xff00, 0x00);
+    printf("kernel was booted by: ");
+    printf((char *)(boot_information_structure->boot_loader_name) + 8);
 }

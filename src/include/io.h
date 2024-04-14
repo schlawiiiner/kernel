@@ -18,4 +18,8 @@ static inline uint8_t inb(uint16_t port) {
 static inline void io_wait(void){
     outb(0x80, 0);
 }
+
+void write_char_to_serial(char character);
+void write_string_to_serial(char* string);
+void write_hex_to_serial(uint64_t integer);
 #endif
