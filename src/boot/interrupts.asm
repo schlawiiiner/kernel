@@ -24,7 +24,7 @@ extern hypervisor_injection_exception
 extern vmm_communication_exception
 extern security_exception
 extern fpu_error_interrupt
-extern pic_handler
+extern irq_handler
 
 %macro PUSH_ALL_REGS 0
     push rax
@@ -264,13 +264,13 @@ int30:
     iret
 int31:
 
-; ---------------------------------------- PIC ------------------------------------------------------
+; ---------------------------------------- IRQ ------------------------------------------------------
 int32:
     cli
     cld
     PUSH_ALL_REGS
     mov rdi, 32
-    call pic_handler
+    call irq_handler
     POP_ALL_REGS
     sti
     iretq
@@ -279,7 +279,7 @@ int33:
     cld
     PUSH_ALL_REGS
     mov rdi, 33
-    call pic_handler
+    call irq_handler
     POP_ALL_REGS
     sti
     iretq
@@ -288,7 +288,7 @@ int34:
     cld
     PUSH_ALL_REGS
     mov rdi, 34
-    call pic_handler
+    call irq_handler
     POP_ALL_REGS
     iretq
 int35:
@@ -296,7 +296,7 @@ int35:
     cld
     PUSH_ALL_REGS
     mov rdi, 35
-    call pic_handler
+    call irq_handler
     POP_ALL_REGS
     iretq
 int36:
@@ -304,7 +304,7 @@ int36:
     cld
     PUSH_ALL_REGS
     mov rdi, 36
-    call pic_handler
+    call irq_handler
     POP_ALL_REGS
     iretq
 int37:
@@ -312,7 +312,7 @@ int37:
     cld
     PUSH_ALL_REGS
     mov rdi, 37
-    call pic_handler
+    call irq_handler
     POP_ALL_REGS
     iretq
 int38:
@@ -320,7 +320,7 @@ int38:
     cld
     PUSH_ALL_REGS
     mov rdi, 38
-    call pic_handler
+    call irq_handler
     POP_ALL_REGS
     iretq
 int39:
@@ -328,7 +328,7 @@ int39:
     cld
     PUSH_ALL_REGS
     mov rdi, 39
-    call pic_handler
+    call irq_handler
     POP_ALL_REGS
     iretq
 int40:
@@ -336,7 +336,7 @@ int40:
     cld
     PUSH_ALL_REGS
     mov rdi, 40
-    call pic_handler
+    call irq_handler
     POP_ALL_REGS
     iretq
 int41:
@@ -344,7 +344,7 @@ int41:
     cld
     PUSH_ALL_REGS
     mov rdi, 41
-    call pic_handler
+    call irq_handler
     POP_ALL_REGS
     iret
 int42:
@@ -352,7 +352,7 @@ int42:
     cld
     PUSH_ALL_REGS
     mov rdi, 42
-    call pic_handler
+    call irq_handler
     POP_ALL_REGS
     iret
 int43:
@@ -360,7 +360,7 @@ int43:
     cld
     PUSH_ALL_REGS
     mov rdi, 43
-    call pic_handler
+    call irq_handler
     POP_ALL_REGS
     iret
 int44:
@@ -368,7 +368,7 @@ int44:
     cld
     PUSH_ALL_REGS
     mov rdi, 44
-    call pic_handler
+    call irq_handler
     POP_ALL_REGS
     iret
 int45:
@@ -376,7 +376,7 @@ int45:
     cld
     PUSH_ALL_REGS
     mov rdi, 45
-    call pic_handler
+    call irq_handler
     POP_ALL_REGS
     iret
 int46:
@@ -384,7 +384,7 @@ int46:
     cld
     PUSH_ALL_REGS
     mov rdi, 46
-    call pic_handler
+    call irq_handler
     POP_ALL_REGS
     iret
 int47:
@@ -392,7 +392,7 @@ int47:
     cld
     PUSH_ALL_REGS
     mov rdi, 47
-    call pic_handler
+    call irq_handler
     POP_ALL_REGS
     iret
 int48:
@@ -400,7 +400,7 @@ int48:
     cld
     PUSH_ALL_REGS
     mov rdi, 48
-    call pic_handler
+    call irq_handler
     POP_ALL_REGS
     iret
 int49:
@@ -408,7 +408,7 @@ int49:
     cld
     PUSH_ALL_REGS
     mov rdi, 49
-    call pic_handler
+    call irq_handler
     POP_ALL_REGS
     iret
 

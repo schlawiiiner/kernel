@@ -1,35 +1,10 @@
 #include "../../src/include/uint.h"
 #include "../../src/include/graphics.h"
-#include "../../src/include/pic.h"
 
-void pic_handler(uint64_t irq) {
-    if (irq == 0x20) {
-        printf(".");
-    } else if (irq == 0x21) {
-        uint8_t scancode  = inb(0x60);
-        if (scancode == 0x02) {
-            printf("1");
-        } else if (scancode == 0x03) {
-            printf("2");
-        } else if (scancode == 0x04) {
-            printf("3");
-        } else if (scancode == 0x05) {
-            printf("4");
-        } else if (scancode == 0x06) {
-            printf("5");
-        } else if (scancode == 0x07) {
-            printf("6");
-        } else if (scancode == 0x08) {
-            printf("7");
-        } else if (scancode == 0x09) {
-            printf("8");
-        } else if (scancode == 0x0a) {
-            printf("9");
-        } else if (scancode == 0x0b) {
-            printf("0");
-        }
-    }
-    PIC_sendEOI(irq);
+void irq_handler(uint64_t irq) {
+    printf("recieved irq:");
+    printhex(irq);
+    while(1);
 }
 
 void kernel_panic(char* str, int error_code, uint64_t*rsp) {

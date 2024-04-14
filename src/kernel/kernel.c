@@ -2,7 +2,6 @@
 #include "../../src/include/bootinfo.h"
 #include "../../src/include/io.h"
 #include "../../src/include/graphics.h"
-#include "../../src/include/pic.h"
 
 
 #define BOOT_INFO_STRUCTURE 0x100080
