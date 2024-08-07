@@ -1,6 +1,7 @@
 #ifndef BOOTINFO
 #define BOOTINFO
 #include "../../src/include/uint.h"
+#include "../../src/include/acpi.h"
 
 typedef struct __attribute__((packed)) BootInformation {
     uint32_t total_size;
@@ -42,7 +43,7 @@ typedef struct __attribute__((packed)) BootInformationStructure {
     uint64_t boot_command_line;
     uint64_t boot_loader_name;
     uint64_t modules;
-    BasicMemoryInformation * basic_memory_information;
+    BasicMemoryInformation* basic_memory_information;
     uint64_t bios_boot_device;
     uint64_t memory_map;
     uint64_t VBE_info;
@@ -52,8 +53,8 @@ typedef struct __attribute__((packed)) BootInformationStructure {
     uint64_t EFI_32bit_system_table_pointer;
     uint64_t EFI_64bit_system_table_pointer;
     uint64_t SMBIOS_tables;
-    uint64_t ACPI_old_RSDP;
-    uint64_t ACPI_new_RSDP;
+    RSDP_t* ACPI_old_RSDP;
+    XSDP_t* ACPI_new_RSDP;
     uint64_t networking_information;
     uint64_t EFI_memory_map;
     uint64_t EFI_boot_service_not_terminated;

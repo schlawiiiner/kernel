@@ -44,6 +44,7 @@ loop:
 %include "src/boot/check.asm"
 %include "src/boot/paging.asm"
 %include "src/boot/interrupts.asm"
+%include "src/boot/apic.asm"
 
 ; Prints the error code to the serial port
 bits 32

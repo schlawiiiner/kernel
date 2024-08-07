@@ -413,13 +413,6 @@ int49:
     iret
 
 
-
-
-
-
-
-
-
 exception_halt_main:
     cli
     hlt

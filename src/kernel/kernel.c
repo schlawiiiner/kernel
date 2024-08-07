@@ -2,6 +2,7 @@
 #include "../../src/include/bootinfo.h"
 #include "../../src/include/io.h"
 #include "../../src/include/graphics.h"
+#include "../../src/include/apic.h"
 
 
 #define BOOT_INFO_STRUCTURE 0x100080
@@ -67,11 +68,11 @@ void parse_boot_information(BootInformation* boot_information) {
             break;
         case 14:
             boot_information_structure->present_flags |= (1 << 14);
-            boot_information_structure->ACPI_old_RSDP = base+offset;
+            boot_information_structure->ACPI_old_RSDP = (RSDP_t*)(base+offset+8);
             break;
         case 15:
             boot_information_structure->present_flags |= (1 << 15);
-            boot_information_structure->ACPI_new_RSDP = base+offset;
+            boot_information_structure->ACPI_new_RSDP = (XSDP_t*)(base+offset+8);
             break;
         case 16:
             boot_information_structure->present_flags |= (1 << 16);
@@ -107,6 +108,7 @@ void parse_boot_information(BootInformation* boot_information) {
 }
 
 
+
 void kernelmain(BootInformation* multiboot_structure, unsigned int magicnumber) {
     parse_boot_information(multiboot_structure);
     BootInformationStructure * boot_information_structure = (BootInformationStructure*)BOOT_INFO_STRUCTURE;
@@ -116,4 +118,9 @@ void kernelmain(BootInformation* multiboot_structure, unsigned int magicnumber) 
     }
     printf("kernel was booted by: ");
     printf((char *)(boot_information_structure->boot_loader_name) + 8);
+    printf("\n");
+    check_XSDT_t_checksum(boot_information_structure->ACPI_new_RSDP);
+    ACPI_Table_Header* xsdt = (ACPI_Table_Header*)(boot_information_structure->ACPI_new_RSDP->XsdtAddress);
+    parse_XSDT(xsdt);
+    set_timer();
 }

@@ -1,13 +1,19 @@
 #include "../../src/include/uint.h"
 #include "../../src/include/graphics.h"
+#include "../../src/include/apic.h"
 
 void irq_handler(uint64_t irq) {
-    printf("recieved irq:");
-    printhex(irq);
-    while(1);
+    //printf("recieved irq:");
+    //printhex(irq);
+    printf(".");
+    send_EOI();
 }
 
 void kernel_panic(char* str, int error_code, uint64_t*rsp) {
+    set_color(0xff0000, 0x000000);
+    fill_screen(0x0000);
+    textmode* tm = (textmode*)TEXTMODE;
+    tm->x_position, tm->y_position = 0,0;
     printf(str);
     char *registers[19];
     registers[0]  = "\n R15   : ";

@@ -34,6 +34,8 @@ void put_char(char character);
 void fill_screen(uint32_t color);
 void printf(char* string);
 void printhex(uint64_t integer);
+void printbin(uint64_t integer);
+void set_color(uint32_t foreground, uint32_t background);
 void init_text_mode(FramebufferInfo* multiboot_structure);
 void init_framebuffer(FramebufferInfo* multiboot_strucure);
 #endif

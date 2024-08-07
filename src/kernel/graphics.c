@@ -87,6 +87,19 @@ void printhex(uint64_t integer) {
     }
 }
 
+void printbin(uint64_t integer) {
+    printf("0b");
+    for (int i = 63; i >= 0; i--) {
+        put_char((char)(((integer >> i) & 0x1) + 48));
+    }
+}
+
+void set_color(uint32_t foreground, uint32_t background) {
+    textmode *tm = (textmode*)TEXTMODE;
+    tm->foreground = foreground;
+    tm->background = background;
+}
+
 void init_text_mode(FramebufferInfo* multiboot_structure) {
     textmode *tm = (textmode*)TEXTMODE;
     tm->width = (uint16_t)multiboot_structure->framebuffer_width/8;
