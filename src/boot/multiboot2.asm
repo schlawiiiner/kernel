@@ -11,7 +11,7 @@ align 8
     dw 5
     dw 0
     dd 20
-    dd 1280, 720, 32
+    dd 1920, 1080, 32
 
 align 8
     ; end-tag
