@@ -36,7 +36,7 @@
 | 9 ...11   | Available                 |
 | 12        | Page Attribute Table      |
 | 13...20   | Reserved (0)              |
-| 21...M-1  | Bits 30-(M-1) of address  |
+| 21...M-1  | Bits 21-(M-1) of address  |
 | M ...51   | Reserved (0)              |
 | 52...58   | Available                 |
 | 59...62   | Protection Key            |
@@ -56,7 +56,7 @@
 | 7         | Page Size                 |
 | 8         | Global                    |
 | 9 ...11   | Available                 |
-| 12...M-1  | Bits 30-(M-1) of address  |
+| 12...M-1  | Bits 12-(M-1) of address  |
 | M ...51   | Reserved (0)              |
 | 52...58   | Available                 |
 | 59...62   | Protection Key            |
