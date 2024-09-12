@@ -32,6 +32,7 @@ SECTIONS
 
         *(.data)
     }
+    . = 0x200000;
     .bss :
     {
         *(COMMON)
