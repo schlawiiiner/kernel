@@ -8,4 +8,8 @@
 - [x] exception handling
 - [x] simple graphics
 - [ ] i/o apic
-- [ ]  pci parsing
+- [ ] ACPI-table parsing
+    - [x] XSDT
+    - [x] MADT
+    - [ ] FADT
+    - [ ] MCFG
