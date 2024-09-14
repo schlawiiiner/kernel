@@ -76,20 +76,9 @@ section .bss
 stack_bottom:
     resb 4096
 stack_top:
-align 4096
-p4_table:
-    resb 4096
-p3_table:
-    resb 4096
-p2_table:
-    resb 4096
-    resb 4096
-    resb 4096
-    resb 4096
 IDT:
     resb 4096
 
-align 16
 framebuffer:
     resb 4
 magic:

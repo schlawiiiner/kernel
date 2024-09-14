@@ -1,4 +1,11 @@
 bits 32
+
+global p4_table
+global p3_table
+global p2_table
+global page_stack_bottom
+global page_stack_ptr
+
 section .text
 set_up_page_tables:
     ; map first P4 entry to P3 table
@@ -62,3 +69,17 @@ enable_paging:
     or eax, 1 << 31
     mov cr0, eax
     ret
+
+section .bss
+    align 4096
+p4_table:
+    resb 4096
+p3_table:
+    resb 4096
+p2_table:
+    resb 4096*16
+page_stack_bottom:
+    resb 4096*16
+page_stack_top:
+page_stack_ptr:
+    resb 8

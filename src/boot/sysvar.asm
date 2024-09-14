@@ -1,5 +1,9 @@
+global tm
+global fb
+global bi
+
 section .sysvar
-    ; textmode 0x100030
+tm:
     dq 0        ; width
     dq 0        ; height
     dq 0        ; x_position
@@ -7,13 +11,13 @@ section .sysvar
     dq 0        ; foreground
     dq 0        ; background
 
-    ; framebuffer 0x100060
+fb:
     dq 0
     dq 0
     dq 0
     dq 0
 
-    ; boot-info tag structure 0x100080
+bi:
     dq 0        ; present flags
     dq 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 

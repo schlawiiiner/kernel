@@ -2,6 +2,7 @@
 #include "../../src/include/bootinfo.h"
 #include "../../src/include/io.h"
 #include "../../src/include/graphics.h"
+#include "../../src/include/cpaging.h"
 #include "../../src/include/apic.h"
 
 
@@ -112,6 +113,7 @@ void parse_boot_information(BootInformation* boot_information) {
 void kernelmain(BootInformation* multiboot_structure, unsigned int magicnumber) {
     parse_boot_information(multiboot_structure);
     BootInformationStructure * boot_information_structure = (BootInformationStructure*)BOOT_INFO_STRUCTURE;
+    init_page_stack();
     if ((boot_information_structure->present_flags & 0x100) >> 8) {
         init_framebuffer(boot_information_structure->framebuffer_info);
         init_text_mode(boot_information_structure->framebuffer_info);
