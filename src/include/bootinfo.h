@@ -38,6 +38,20 @@ typedef struct __attribute__((packed)) FramebufferInfo {
     uint8_t framebuffer_blue_mask_size;
 } FramebufferInfo;
 
+typedef struct __attribute__((packed)) MemoryMap {
+    uint32_t type;
+    uint32_t size;
+    uint32_t entry_size;
+    uint32_t entry_version;
+} MemoryMap;
+
+typedef struct __attribute__((packed)) MemoryMapEntry {
+    uint64_t base_addr;
+    uint64_t length;
+    uint32_t type;
+    uint32_t reserved;
+} MemoryMapEntry;
+
 typedef struct __attribute__((packed)) BootInformationStructure {
     uint64_t present_flags;
     uint64_t boot_command_line;
@@ -45,7 +59,7 @@ typedef struct __attribute__((packed)) BootInformationStructure {
     uint64_t modules;
     BasicMemoryInformation* basic_memory_information;
     uint64_t bios_boot_device;
-    uint64_t memory_map;
+    MemoryMap* memory_map;
     uint64_t VBE_info;
     FramebufferInfo* framebuffer_info;
     uint64_t ELF_symbols;

@@ -37,7 +37,7 @@ void parse_boot_information(BootInformation* boot_information) {
             break;
         case 6:
             boot_information_structure->present_flags |= (1 << 6);
-            boot_information_structure->memory_map = base+offset;
+            boot_information_structure->memory_map = (MemoryMap*)(base+offset);
             break;
         case 7:
             boot_information_structure->present_flags |= (1 << 7);
@@ -113,16 +113,21 @@ void parse_boot_information(BootInformation* boot_information) {
 void kernelmain(BootInformation* multiboot_structure, unsigned int magicnumber) {
     parse_boot_information(multiboot_structure);
     BootInformationStructure * boot_information_structure = (BootInformationStructure*)BOOT_INFO_STRUCTURE;
-    init_page_stack();
-    if ((boot_information_structure->present_flags & 0x100) >> 8) {
+    
+    if ((boot_information_structure->present_flags & (1 << 6)) >> 6) {
+        init_page_stack(boot_information_structure->memory_map);
+        init_page_table();
+    }
+    if ((boot_information_structure->present_flags & (1 << 8)) >> 8) {
         init_framebuffer(boot_information_structure->framebuffer_info);
         init_text_mode(boot_information_structure->framebuffer_info);
     }
-    printf("kernel was booted by: ");
+    dump_vmem();
+    printf("\nkernel was booted by: ");
     printf((char *)(boot_information_structure->boot_loader_name) + 8);
     printf("\n");
     check_XSDT_t_checksum(boot_information_structure->ACPI_new_RSDP);
     ACPI_Table_Header* xsdt = (ACPI_Table_Header*)(boot_information_structure->ACPI_new_RSDP->XsdtAddress);
     parse_XSDT(xsdt);
-    set_timer();
+    //set_timer();
 }

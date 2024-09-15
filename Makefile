@@ -49,12 +49,14 @@ clean:
 
 qemu:
 	@make -s build
+	@rm -rf test/
 	@mkdir -p test/boot/grub
 	@cp grub.cfg test/boot/grub/
 	@cp bin/mykernel.bin test/boot/
 	@grub-mkrescue -o test/boot/mykernel.iso test 2> /dev/null
 	@qemu-system-x86_64 \
 	-machine q35  \
+	-m 4G \
 	-device qemu-xhci \
 	-bios /usr/share/ovmf/OVMF.fd \
 	-cdrom test/boot/mykernel.iso \

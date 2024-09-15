@@ -17,22 +17,7 @@ set_up_page_tables:
     mov eax, p2_table
     or eax, 0b11 ; present + writable
     mov [p3_table], eax
-
-    mov eax, p2_table
-    add eax, 4096
-    or eax, 0b11
-    mov [p3_table + 8], eax
-
-    mov eax, p2_table
-    add eax, 4096*2
-    or eax, 0b11
-    mov [p3_table + 16], eax
-
-    mov eax, p2_table
-    add eax, 4096*3
-    or eax, 0b11
-    mov [p3_table + 24], eax
-
+    
     ; map each P2 entry to a huge 2MiB page
     mov ecx, 0         ; counter variable
 
@@ -44,7 +29,7 @@ set_up_page_tables:
     mov [p2_table + ecx * 8], eax ; map ecx-th entry
 
     inc ecx            ; increase counter
-    cmp ecx, 512*4       ; if counter == 512, the whole P2 table is mapped
+    cmp ecx, 512       ; if counter == 512, the whole P2 table is mapped
     jne .map_p2_table  ; else map the next entry
     ret
 
@@ -77,7 +62,7 @@ p4_table:
 p3_table:
     resb 4096
 p2_table:
-    resb 4096*16
+    resb 4096*512
 page_stack_bottom:
     resb 4096*16
 page_stack_top:
