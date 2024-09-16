@@ -2,6 +2,7 @@
 #include "../../src/include/uint.h"
 #include "../../src/include/bootinfo.h"
 #include "../../src/include/cpaging.h"
+#include "../../src/include/io.h"
 
 struct __attribute__((packed)) textmode {
     uint64_t width;
@@ -23,6 +24,7 @@ struct __attribute__((packed)) framebuffer {
 
 typedef struct framebuffer framebuffer;
 
+//sysvar.asm
 extern framebuffer fb;
 extern textmode tm;
 
@@ -106,8 +108,6 @@ void init_text_mode(FramebufferInfo* multiboot_structure) {
 }
 
 void init_framebuffer(FramebufferInfo* multiboot_strucure) {
-    fb.address = (uint32_t*)0x4000000;
-    
     fb.width = multiboot_strucure->framebuffer_width;
     fb.height = multiboot_strucure->framebuffer_height;
     fb.pitch = multiboot_strucure->framebuffer_pitch;
@@ -116,7 +116,8 @@ void init_framebuffer(FramebufferInfo* multiboot_strucure) {
     if (((fb.height*fb.pitch) % PAGE_SIZE) != 0) {
         n_pages_for_fb += 1; 
     }
-    for (int i = 0; i < n_pages_for_fb; i++) {
-        map_virtual_memory_to_physical_memory((uint64_t)fb.address + i*PAGE_SIZE ,multiboot_strucure->framebuffer_addr + i*PAGE_SIZE);
-    }
+    write_string_to_serial("\nFramebuffer Address: ");
+    write_hex_to_serial(multiboot_strucure->framebuffer_addr);
+    write_string_to_serial("\n");
+    fb.address = (uint32_t*)map_vmem_to_pmem(multiboot_strucure->framebuffer_addr, n_pages_for_fb);
 }

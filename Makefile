@@ -56,7 +56,7 @@ qemu:
 	@grub-mkrescue -o test/boot/mykernel.iso test 2> /dev/null
 	@qemu-system-x86_64 \
 	-machine q35  \
-	-m 4G \
+	-m 2G \
 	-device qemu-xhci \
 	-bios /usr/share/ovmf/OVMF.fd \
 	-cdrom test/boot/mykernel.iso \
