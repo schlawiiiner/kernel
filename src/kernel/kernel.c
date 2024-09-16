@@ -111,26 +111,17 @@ void parse_boot_information(BootInformation* boot_information) {
 
 void kernelmain(BootInformation* multiboot_structure, unsigned int magicnumber) {
     parse_boot_information(multiboot_structure);
-    
     if ((bis.present_flags & (1 << 6)) >> 6) {
         init_mem(bis.memory_map);
     }
     if ((bis.present_flags & (1 << 8)) >> 8) {
-        init_framebuffer(bis.framebuffer_info);
-        init_text_mode(bis.framebuffer_info);
+        init_graphics(bis.framebuffer_info);
     }
     printf("\nkernel was booted by: ");
     printf((char *)(bis.boot_loader_name) + 8);
     printf("\n");
-    MemoryMapEntry * mmap_entry = (MemoryMapEntry*)((uint64_t)(bis.memory_map) + 16);
-    for (int i = 0; i < (bis.memory_map->size - 16)/bis.memory_map->entry_size; i++) {
-        printhex(mmap_entry[i].base_addr);
-        printf(" ");
-        printhex(mmap_entry[i].length);
-        printf("\n");
-    }
     check_XSDT_t_checksum(bis.ACPI_new_RSDP);
     ACPI_Table_Header* xsdt = (ACPI_Table_Header*)(bis.ACPI_new_RSDP->XsdtAddress);
-    //parse_XSDT(xsdt);
+    parse_XSDT(xsdt);
     //set_timer();
 }

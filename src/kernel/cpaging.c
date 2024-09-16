@@ -102,40 +102,6 @@ int remove_page(uint64_t addr) {
     return 1;
 }
 
-
-
-/*TODO: check if page entry is already present*/
-/*This function forces an assignment to of a physical address to a virtual address, but is slow compared to automatic assignment*/
-void map_virtual_memory_to_physical_memory(uint64_t virtual_addr, uint64_t physical_addr) {
-    if (virtual_addr % PAGE_SIZE != 0) {
-        fill_screen(0x000000);
-        set_color(0xff0000, 0x000000);
-        printf("ERROR: virtual address must be page aligned");
-        while(1);
-    } else if (physical_addr % PAGE_SIZE != 0) {
-        fill_screen(0x000000);
-        set_color(0xff0000, 0x000000);
-        printf("ERROR: physical address must be page aligned");
-        while(1);
-    }
-
-    uint64_t p4_offset = (virtual_addr >> 39) & 0x1FF;  // Bits 39-47
-    uint64_t p3_offset = (virtual_addr >> 30) & 0x1FF;  // Bits 30-38
-    uint64_t p2_offset = (virtual_addr >> 21) & 0x1FF;  // Bits 21-29
-
-    uint64_t p4_addr = (uint64_t)p3_table | 0x3;
-    uint64_t p3_addr = (uint64_t)p2_table | 0x3;
-    uint64_t p2_addr = (physical_addr & 0xfffffffffffff000) | 0x83;
-    
-    p4_table[p4_offset] = p4_addr;
-    p3_table[p3_offset] = p3_addr;
-    p2_table[p2_offset] = p2_addr;
-
-    /*flush the TLB*/
-    asm volatile ("invlpg (%0)" ::"r" (virtual_addr) : "memory");
-    //remove_page(physical_addr);
-}
-
 uint64_t vmalloc(int size) {
     int found = 0;
     uint64_t virt_addr;
@@ -171,6 +137,29 @@ uint64_t kmalloc(int size) {
     return base_addr;
 }
 
+void kmfree(uint64_t base_addr, int size) {
+    if (base_addr < mi.memory_size) {
+        int base_i = (int)(base_addr/0x200000);
+        uint64_t offset = 0x0;
+        for (int i = base_i; i < base_i + size; i++) {
+            push_page(p2_table[i] & 0x7ffffffff200000);
+            p2_table[i] = 0x0;
+            asm volatile ("invlpg (%0)" ::"r" (base_addr + offset) : "memory");
+            offset += 0x200000;
+        }
+    } else {
+        //MMIO
+        int base_i = (int)(base_addr/0x200000);
+        uint64_t offset = 0x0;
+        for (int i = base_i; i < base_i + size; i++) {
+            p2_table[i] = 0x0;
+            asm volatile ("invlpg (%0)" ::"r" (base_addr + offset) : "memory");
+            offset += 0x200000;
+        }
+    }
+}
+
+/*TODO: catch error and free the removed pages*/
 uint64_t map_vmem_to_pmem(uint64_t base_addr, int size) {
     uint64_t virtual_base_addr = vmalloc(size);
     if (base_addr < mi.memory_size) {
@@ -196,7 +185,7 @@ uint64_t map_vmem_to_pmem(uint64_t base_addr, int size) {
 }
 
 void dump_vmem() {
-    for (int i = 0; i < 0x200*30; i++) {
+    for (int i = 0; i < 0x200*0x200; i++) {
         if (p2_table[i] & 0x1) {
             printf("1");
         } else {

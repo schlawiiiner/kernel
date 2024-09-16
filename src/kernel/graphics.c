@@ -34,6 +34,14 @@ void put_pixel(int x, int y, uint32_t color) {
     fb.address[x + width*y] = color;
 }
 
+void fill_screen(uint32_t color) {
+    for (int x = 0; x < fb.width; x++) {
+        for (int y = 0; y < fb.height; y++) {
+            put_pixel(x, y, color);
+        }
+    }
+}
+
 void put_char(char character) {
     for (int i = 1; i <= 8; i++) {
         for (int j = 0; j < 16; j++) {
@@ -46,20 +54,20 @@ void put_char(char character) {
             }
         }
     }
-    if (tm.x_position == tm.width) {
-        tm.y_position++;
-        tm.x_position = 0;
+    if (tm.x_position == tm.width - 1) {
+        if (tm.y_position == tm.height - 1) {
+            fill_screen(tm.background);
+            tm.x_position = 0;
+            tm.y_position = 0;
+        } else {
+            tm.y_position++;
+            tm.x_position = 0;
+        }
     } else {
         tm.x_position++;
     }
 }
-void fill_screen(uint32_t color) {
-    for (int x = 0; x < fb.width; x++) {
-        for (int y = 0; y < fb.height; y++) {
-            put_pixel(x, y, color);
-        }
-    }
-}
+
 
 void printf(char* string) {
     int i = 0;
@@ -97,9 +105,9 @@ void set_color(uint32_t foreground, uint32_t background) {
     tm.background = background;
 }
 
-void init_text_mode(FramebufferInfo* multiboot_structure) {
-    tm.width = (uint16_t)multiboot_structure->framebuffer_width/8;
-    tm.height = (uint16_t)multiboot_structure->framebuffer_height/16;
+void init_text_mode(FramebufferInfo* framebuffer_info) {
+    tm.width = (uint16_t)framebuffer_info->framebuffer_width/8;
+    tm.height = (uint16_t)framebuffer_info->framebuffer_height/16;
     tm.x_position = 0;
     tm.y_position = 0;
     tm.foreground = 0x00ff00;
@@ -107,17 +115,19 @@ void init_text_mode(FramebufferInfo* multiboot_structure) {
     fill_screen(0x000000);
 }
 
-void init_framebuffer(FramebufferInfo* multiboot_strucure) {
-    fb.width = multiboot_strucure->framebuffer_width;
-    fb.height = multiboot_strucure->framebuffer_height;
-    fb.pitch = multiboot_strucure->framebuffer_pitch;
+void init_framebuffer(FramebufferInfo* framebuffer_info) {
+    fb.width = framebuffer_info->framebuffer_width;
+    fb.height = framebuffer_info->framebuffer_height;
+    fb.pitch = framebuffer_info->framebuffer_pitch;
 
     uint64_t n_pages_for_fb = (fb.height*fb.pitch) / PAGE_SIZE;
     if (((fb.height*fb.pitch) % PAGE_SIZE) != 0) {
         n_pages_for_fb += 1; 
     }
-    write_string_to_serial("\nFramebuffer Address: ");
-    write_hex_to_serial(multiboot_strucure->framebuffer_addr);
-    write_string_to_serial("\n");
-    fb.address = (uint32_t*)map_vmem_to_pmem(multiboot_strucure->framebuffer_addr, n_pages_for_fb);
+    fb.address = (uint32_t*)map_vmem_to_pmem(framebuffer_info->framebuffer_addr, n_pages_for_fb);
+}
+
+void init_graphics(FramebufferInfo* framebuffer_info) {
+    init_framebuffer(framebuffer_info);
+    init_text_mode(framebuffer_info);
 }
