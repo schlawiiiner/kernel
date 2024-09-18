@@ -5,6 +5,9 @@
     - [x] long mode
     - [x] paging
     - [x] GDT
+- [ ] memory management
+    - [x] page frame allocator
+    - [ ] memory allocator
 - [ ] interrupts
     - [x] IDT
     - [x] exception handling stubs
@@ -12,7 +15,9 @@
         - [x] APIC timer
 - [ ] ACPI-table parsing
     - [x] XSDT
-    - [ ] MADT
+    - [x] MADT
     - [ ] FADT
     - [ ] MCFG
-- [ ] PCI Express
+- [ ] PCI
+    - [ ] device enumeration
+    - [ ] MSI/MSI-X

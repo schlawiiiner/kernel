@@ -184,6 +184,32 @@ uint64_t map_vmem_to_pmem(uint64_t base_addr, int size) {
     return virtual_base_addr;
 }
 
+int identity_map(uint64_t base_addr, int size) {
+    if (base_addr < mi.memory_size) {
+        for (int i = 0; i < size; i++) {
+            if (remove_page(base_addr + i*0x200000)) {
+                /*the i-th physical page is already mapped, so we free the other pages*/
+                for (int j = 0; j < i; j++) {
+                    push_page(base_addr + i*0x200000);
+                }
+                return 1;
+            }
+        }
+    } else {
+        //MMIO, likely configuration space for hardware.
+        //pass through
+    }
+ 
+    int base_i  = (int)(base_addr/0x200000);
+    uint64_t offset = 0x0;
+    for (int i = base_i; i < size+base_i; i++) {
+        p2_table[i] = (base_addr + offset) | 0x83;
+        asm volatile ("invlpg (%0)" ::"r" (base_addr + offset) : "memory");
+        offset += 0x200000;
+    }
+    return 0;
+}
+
 void dump_vmem() {
     for (int i = 0; i < 0x200*0x200; i++) {
         if (p2_table[i] & 0x1) {
@@ -194,8 +220,11 @@ void dump_vmem() {
     }
     printf("\n");
 }
+
 void dump_p2() {
     for (int i = 0; i < 0x200; i++) {
+        write_hex_to_serial(i*0x200000);
+        write_string_to_serial(": ");
         write_hex_to_serial(p2_table[i]);
         write_string_to_serial("\n");
     }

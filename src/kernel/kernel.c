@@ -113,15 +113,29 @@ void kernelmain(BootInformation* multiboot_structure, unsigned int magicnumber) 
     parse_boot_information(multiboot_structure);
     if ((bis.present_flags & (1 << 6)) >> 6) {
         init_mem(bis.memory_map);
+    } else {
+        write_string_to_serial("\nERROR: cannot initialize the memory, no memory map provided by the bootloader\n");
+        while(1);
     }
     if ((bis.present_flags & (1 << 8)) >> 8) {
         init_graphics(bis.framebuffer_info);
+    } else {
+        write_string_to_serial("\nERROR: cannot initialize the graphics, no frambuffer info provided by the bootloader");
+        while(1);
     }
-    printf("\nkernel was booted by: ");
-    printf((char *)(bis.boot_loader_name) + 8);
-    printf("\n");
-    check_XSDT_t_checksum(bis.ACPI_new_RSDP);
-    ACPI_Table_Header* xsdt = (ACPI_Table_Header*)(bis.ACPI_new_RSDP->XsdtAddress);
-    parse_XSDT(xsdt);
-    //set_timer();
+    if ((bis.present_flags & (1 << 2)) >> 2) {
+        printf("\nkernel was booted by: ");
+        printf((char *)(bis.boot_loader_name) + 8);
+        printf("\n");
+    } else {
+        printf("\nkernel was booted by: unknown bootloader\n");
+    }
+    
+    if ((bis.present_flags & (1 << 15)) >> 15) {
+        check_XSDT_t_checksum(bis.ACPI_new_RSDP);
+        ACPI_Table_Header* xsdt = (ACPI_Table_Header*)(bis.ACPI_new_RSDP->XsdtAddress);
+        parse_XSDT(xsdt);
+    }
+    set_timer();
+    
 }

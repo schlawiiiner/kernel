@@ -86,6 +86,15 @@ typedef struct __attribute__((packed)) MADT_Local_APIC_Address_Override {
   uint64_t Local_APIC_Address;
 } MADT_Local_APIC_Address_Override;
 
+typedef struct __attribute__((packed)) MADT_Processor_Local_x2APIC {
+  uint8_t Type;
+  uint8_t Length;
+  uint16_t Reserved;
+  uint32_t Processor_local_x2APIC_ID;
+  uint32_t Flags;
+  uint32_t ACPI ID;
+} MADT_Processor_Local_x2APIC;
+
 void check_RSDP_t_checksum(RSDP_t* table);
 void check_XSDT_t_checksum(XSDP_t* table);
 void parse_XSDT(ACPI_Table_Header* XSDT);

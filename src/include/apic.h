@@ -5,7 +5,7 @@
 #include "../../src/include/bootinfo.h"
 #include "../../src/include/graphics.h"
 
-#define APIC_BASE                       0xeee00000
+#define APIC_BASE                       (uint64_t)0xfee00000
 #define LOCAL_APIC_ID_REG_OFFSET 0x20
 #define LOCAL_APIC_VERSION_REG_OFFSET 0x30
 #define TPR_OFFSET 0x80
@@ -85,4 +85,5 @@ void inline set_divide_configuration(uint8_t divide) {
 }
 
 void set_timer();
+void apic_err();
 #endif

@@ -5,6 +5,9 @@
 void irq_handler(uint64_t irq) {
     //printf("recieved irq:");
     //printhex(irq);
+    if(irq == 0x22) {
+        apic_err();
+    }
     printf(".");
     send_EOI();
 }
