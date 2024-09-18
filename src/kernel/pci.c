@@ -3,6 +3,8 @@
 #include "../../src/include/pci.h"
 #include "../../src/include/apic.h"
 #include "../../src/include/cpaging.h"
+#include "../../src/include/acpi.h"
+
 
 
 void enable_MSI(PCIHeaderType0* device, uint32_t* msi_capability) {
@@ -80,4 +82,25 @@ void analyze_device(PCIHeader* header) {
         }
     } 
     return;
+}
+
+
+void parse_MCFG() {
+    if (!(acpi.Flags & 0b010)) {
+        printf("ERROR: No MCFG table present");
+        while(1);
+    }
+    for (int offset = 44; offset < acpi.MCFG->Length; offset+=16) {
+        MCFG_entry* entry = (MCFG_entry*)((uint64_t)acpi.MCFG + offset);
+        uint64_t addr = entry->base_address;
+        for (int bus = entry->start_PCI_bus_number; bus < entry->end_PCI_bus_number; bus++) {
+            for (int device = 0; device < 32; device++) {
+                for (int func = 0; func < 8; func++) {
+                    PCIHeader* phy_addr = (PCIHeader*)(addr + (bus << 20 | device << 15 | func << 12));
+                    analyze_device(phy_addr);
+                }
+            }
+        }
+    }
+
 }

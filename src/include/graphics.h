@@ -1,5 +1,5 @@
-#ifndef GRAPHICS
-#define GRAPHICS
+#ifndef GRAPHICS_H
+#define GRAPHICS_H
 #include "../../src/include/uint.h"
 #include "../../src/include/font.h"
 #include "../../src/include/bootinfo.h"

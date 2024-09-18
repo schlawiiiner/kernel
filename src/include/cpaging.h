@@ -1,5 +1,5 @@
-#ifndef CPAGING
-#define CPAGING
+#ifndef CPAGING_H
+#define CPAGING_H
 #include "../../src/include/uint.h"
 #include "../../src/include/bootinfo.h"
 

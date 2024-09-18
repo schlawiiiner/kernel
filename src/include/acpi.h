@@ -1,5 +1,5 @@
-#ifndef ACPI
-#define ACPI
+#ifndef ACPI_H
+#define ACPI_H
 #include "../../src/include/uint.h"
 
 typedef struct __attribute__((packed)) ACPI_Table_Header {
@@ -36,6 +36,26 @@ typedef struct RSDP_t {
   uint32_t RsdtAddress;
 } __attribute__ ((packed)) RSDP_t;
 
+/*
+------------------------------------------------
+MCFG
+------------------------------------------------
+*/
+typedef struct __attribute__((packed)) MCFG_entry {
+    uint64_t base_address;
+    uint16_t PCI_Segment_Group_Number;
+    uint8_t start_PCI_bus_number;
+    uint8_t end_PCI_bus_number;
+    uint32_t reserved;
+} MCFG_entry;
+
+
+
+/*
+------------------------------------------------
+MADT
+------------------------------------------------
+*/
 typedef struct __attribute__((packed)) MADT_processor_local_APIC {
   uint8_t Type;
   uint8_t Length;
@@ -92,8 +112,18 @@ typedef struct __attribute__((packed)) MADT_Processor_Local_x2APIC {
   uint16_t Reserved;
   uint32_t Processor_local_x2APIC_ID;
   uint32_t Flags;
-  uint32_t ACPI ID;
+  uint32_t ACPI_ID;
 } MADT_Processor_Local_x2APIC;
+
+/*see sysvar.asm*/
+typedef struct __attribute__((packed)) ACPI {
+  uint64_t Flags;
+  ACPI_Table_Header* MADT;
+  ACPI_Table_Header* MCFG;
+  ACPI_Table_Header* FADT;
+} ACPI;
+
+extern ACPI acpi;
 
 void check_RSDP_t_checksum(RSDP_t* table);
 void check_XSDT_t_checksum(XSDP_t* table);

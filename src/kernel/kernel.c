@@ -4,6 +4,7 @@
 #include "../../src/include/graphics.h"
 #include "../../src/include/cpaging.h"
 #include "../../src/include/apic.h"
+#include "../../src/include/pci.h"
 
 
 extern BootInformationStructure bis;
@@ -130,12 +131,13 @@ void kernelmain(BootInformation* multiboot_structure, unsigned int magicnumber) 
     } else {
         printf("\nkernel was booted by: unknown bootloader\n");
     }
-    
     if ((bis.present_flags & (1 << 15)) >> 15) {
         check_XSDT_t_checksum(bis.ACPI_new_RSDP);
         ACPI_Table_Header* xsdt = (ACPI_Table_Header*)(bis.ACPI_new_RSDP->XsdtAddress);
         parse_XSDT(xsdt);
     }
-    set_timer();
+    parse_MADT();
+    parse_MCFG();
+    set_timer(); 
     
 }

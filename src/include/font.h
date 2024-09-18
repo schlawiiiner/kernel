@@ -1,5 +1,5 @@
-#ifndef font
-#define font
+#ifndef font_H
+#define font_H
 extern char Not_implemented_yet[16];
                   
 extern char A_char[16];

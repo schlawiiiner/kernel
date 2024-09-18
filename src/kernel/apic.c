@@ -8,6 +8,58 @@
 extern uint32_t enable_APIC(void);
 extern uint32_t remap_APIC_registers(uint32_t addr);
 
+void parse_MADT() {
+    if (!(acpi.Flags & 0b001)) {
+        printf("ERROR: No MADT table present");
+        while(1);
+    }
+    uint8_t* base = (uint8_t*)acpi.MADT;
+    int offset = 0x2c;
+    while (offset < acpi.MADT->Length) {
+        switch (base[offset]){
+        case 0:
+            MADT_processor_local_APIC* entry0 = (MADT_processor_local_APIC*)(base+offset);
+            
+            offset+= entry0->Length;
+            break;
+        case 1:
+            MADT_IO_APIC* entry1 = (MADT_IO_APIC*)(base+offset);;
+            offset+= entry1->Length;
+            break;
+        case 2:
+            MADT_IO_Interrpt_Source_Override* entry2 = (MADT_IO_Interrpt_Source_Override*)(base+offset);
+            
+            offset+= entry2->Length;
+            break;
+        case 3:
+            MADT_IO_Non_maskable_interrupt_source* entry3 = (MADT_IO_Non_maskable_interrupt_source*)(base+offset);
+            
+            offset+= entry3->Length;
+            break;
+        case 4:
+            MADT_IO_Non_maskable_interrupt* entry4 = (MADT_IO_Non_maskable_interrupt*)(base+offset);
+            
+            offset+= entry4->Length;
+            break;
+        case 5:
+            MADT_Local_APIC_Address_Override* entry5 = (MADT_Local_APIC_Address_Override*)(base+offset);
+            
+            offset+= entry5->Length;
+            break;
+        case 9:
+            MADT_Processor_Local_x2APIC* entry9 = (MADT_Processor_Local_x2APIC*)(base+offset);
+            offset+= entry9->Length;
+            break;
+        default:
+            set_color(0xff0000, 0x000000);
+            printf("\nERROR: cannot parse MADT entry of type: ");
+            printhex(base[offset]);
+            while(1);
+
+        }
+    }
+}
+
 void init_APIC(void) {
     //pic_disable();
     if (identity_map(APIC_BASE, 1)) {

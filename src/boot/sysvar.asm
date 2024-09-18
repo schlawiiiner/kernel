@@ -2,6 +2,7 @@ global tm
 global fb
 global bis
 global mi
+global acpi
 
 section .sysvar
 ; textmode
@@ -26,4 +27,10 @@ bis:
 ; memory information structure
 mi:
     dq 0        ; memory size
+
+acpi:
+    dq 0        ; present flags
+    dq 0        ; ptr to MADT
+    dq 0        ; ptr to MCFG
+    dq 0        ; ptr to FADT
 

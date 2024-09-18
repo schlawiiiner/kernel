@@ -1,5 +1,5 @@
-#ifndef BOOTINFO
-#define BOOTINFO
+#ifndef BOOTINFO_H
+#define BOOTINFO_H
 #include "../../src/include/uint.h"
 #include "../../src/include/acpi.h"
 

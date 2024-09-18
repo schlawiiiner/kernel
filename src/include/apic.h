@@ -1,5 +1,5 @@
-#ifndef APIC
-#define APIC
+#ifndef APIC_H
+#define APIC_H
 
 #include "../../src/include/uint.h"
 #include "../../src/include/bootinfo.h"
@@ -86,4 +86,5 @@ void inline set_divide_configuration(uint8_t divide) {
 
 void set_timer();
 void apic_err();
+void parse_MADT();
 #endif

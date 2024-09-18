@@ -1,5 +1,5 @@
-#ifndef PCI
-#define PCI
+#ifndef PCI_H
+#define PCI_H
 #include "../../src/include/uint.h"
 
 typedef struct __attribute__((packed)) PCIHeader{
@@ -128,5 +128,5 @@ typedef struct __attribute__((packed)) PCIHeaderType2 {
     uint32_t _16_Bit_PC_Card_Legacy_Mode_Base_Address;
 } PCIHeaderType2;
 
-void analyze_device(PCIHeader* header);
+void parse_MCFG();
 #endif
