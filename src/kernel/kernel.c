@@ -136,8 +136,9 @@ void kernelmain(BootInformation* multiboot_structure, unsigned int magicnumber) 
         ACPI_Table_Header* xsdt = (ACPI_Table_Header*)(bis.ACPI_new_RSDP->XsdtAddress);
         parse_XSDT(xsdt);
     }
+    init_APIC(); 
     parse_MADT();
     parse_MCFG();
-    set_timer(); 
+    set_timer();
     
 }

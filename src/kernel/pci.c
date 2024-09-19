@@ -6,23 +6,34 @@
 #include "../../src/include/acpi.h"
 
 
+void enable_MSIX() {
 
-void enable_MSI(PCIHeaderType0* device, uint32_t* msi_capability) {
+}
+
+void __attribute__((optimize("O0"))) dump_MSI_capability(uint32_t* msi_capability) {
+    for (int i = 0; i < 6; i++) {
+        printbin(msi_capability[i]);
+        printf("\n");
+    }
+}
+
+
+void __attribute__((optimize("O0"))) enable_MSI(PCIHeaderType0* device, uint32_t* msi_capability) {
     int num_msi_vectors = ((msi_capability[0] >> 17) & 0b111) + 1;
-    printf("Number of MSI vectors: ");
-    printhex(num_msi_vectors);
-    printf("\n");
     int capable_of_64_bit = ((msi_capability[0] >> 23) & 0b1);
-    printf("64-Bit capable       : ");
-    printhex(capable_of_64_bit);
-    printf("\n");
-    msi_capability[1] = (uint32_t)APIC_BASE;
-    msi_capability[2] = 0x0;
-    msi_capability[3] = 0x21;
-    msi_capability[4] = 0x0;
-    msi_capability[0] |= (1<<16);
-    printbin(msi_capability[0]);
-    printf("\n\n");
+
+    uint32_t msi_addr =  msi_capability[1];
+    msi_addr &= 0b111111110000;
+    msi_addr |= (uint32_t)(0xfee << 20);
+    msi_capability[1] = msi_addr;
+
+    uint32_t msi_data_low = msi_capability[3];
+    msi_data_low &= ~0b1100011111111111;
+    msi_data_low |= 0x23;
+    msi_capability[3] = msi_data_low;
+    msi_capability[4] = 0;
+    msi_capability[5] = 0;
+    msi_capability[0] |= (1 << 16);
 }
 
 
@@ -52,10 +63,13 @@ void device0(PCIHeaderType0* device) {
     printhex(device->Prog_IF);
     if (cap) {
         printf(": MSI-X\n");
+        enable_MSIX();
     } else {
         cap = capability(device, 0x05);
         if (cap) {
             printf(": MSI\n");
+            device->Command |= 0b111;
+            device->Command |= (1 << 10);
             enable_MSI(device, cap);
         } else {
             printf(": NAN\n");

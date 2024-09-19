@@ -3,12 +3,14 @@
 #include "../../src/include/apic.h"
 
 void irq_handler(uint64_t irq) {
-    //printf("recieved irq:");
-    //printhex(irq);
     if(irq == 0x22) {
         apic_err();
     }
-    printf(".");
+    if (irq == 0x23) {
+        printf("IPI");
+    } else {
+        printf(".");
+    }   
     send_EOI();
 }
 

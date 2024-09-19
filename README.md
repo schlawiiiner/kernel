@@ -21,3 +21,4 @@
 - [ ] PCI
     - [ ] device enumeration
     - [ ] MSI/MSI-X
+- [ ] MP

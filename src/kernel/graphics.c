@@ -73,8 +73,14 @@ void printf(char* string) {
     int i = 0;
     while (string[i] != '\0') {
         if (string[i] == '\n') {
-            tm.y_position++;
-            tm.x_position = 0;
+            if (tm.y_position == tm.height - 1) {
+                fill_screen(tm.background);
+                tm.y_position = 0;
+                tm.x_position = 0;
+            } else {
+                tm.y_position++;
+                tm.x_position = 0;
+            }
         } else {
             put_char(string[i]);
         }
