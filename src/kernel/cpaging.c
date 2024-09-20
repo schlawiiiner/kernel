@@ -222,10 +222,12 @@ void dump_vmem() {
 }
 
 void dump_p2() {
-    for (int i = 0; i < 0x200; i++) {
-        write_hex_to_serial(i*0x200000);
-        write_string_to_serial(": ");
-        write_hex_to_serial(p2_table[i]);
-        write_string_to_serial("\n");
+    for (int i = 0x400; i < 0x200*0x200; i++) {
+        if (p2_table[i] & 0x1) {
+            printhex((i*(uint64_t)0x200000));
+            printf(": ");
+            printhex(p2_table[i]);
+            printf("\n");
+        }
     }
 }

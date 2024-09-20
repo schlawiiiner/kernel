@@ -111,6 +111,11 @@ void set_color(uint32_t foreground, uint32_t background) {
     tm.background = background;
 }
 
+void set_cursor(uint32_t x, uint32_t y) {
+    tm.x_position = x;
+    tm.y_position = y;
+}
+
 void init_text_mode(FramebufferInfo* framebuffer_info) {
     tm.width = (uint16_t)framebuffer_info->framebuffer_width/8;
     tm.height = (uint16_t)framebuffer_info->framebuffer_height/16;

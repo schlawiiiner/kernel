@@ -70,7 +70,7 @@ qemu:
 	-cdrom test/boot/mykernel.iso \
 	-accel kvm \
 	-serial file:serial.log \
-	-cpu host
+	-cpu max
 	@rm -r test
 
 dissasemble: bin/mykernel.bin

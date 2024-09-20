@@ -5,15 +5,15 @@
 
 #define ACPI_XSDT_ENTRY_OFFSET 36
 
-void check_RSDP_t_checksum(RSDP_t* table) {
+void check_checksum(ACPI_Table_Header* table) {
     uint8_t* ptr = (uint8_t*)table;
-    uint32_t sum;
-    for (int i = 0; i < 20; i++) {
+    uint32_t sum = 0;
+    for (int i = 0; i < table->Length; i++) {
         sum += ptr[i];
     }
-    if ((sum & 0x11) != 0x00) {
+    if ((sum % 0x100) != 0x00) {
         set_color(0xff0000, 0x000000);
-        printf("ERROR: RSDP_t checksum is not valid");
+        printf("ERROR: checksum is not valid");
         while(1);
     }
 }
@@ -70,6 +70,7 @@ void parse_XSDT(ACPI_Table_Header* XSDT) {
     int len = (int)((XSDT->Length - ACPI_XSDT_ENTRY_OFFSET)/8);
     for (int i = 0; i < len; i++) {
         ACPI_Table_Header* table = (ACPI_Table_Header*)(base[i]);
+        check_checksum(table);
         if (cmp_char("APIC", table->Signature, 4)) {
             acpi.Flags |= 1;
             acpi.MADT = table;

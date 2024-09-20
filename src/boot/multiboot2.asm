@@ -1,6 +1,6 @@
 section .multiboot2
 header_start:
-align 4
+align 8
     dd 0xe85250d6                               ; magic
     dd 0                                        ; arcitecture: 32-bit (protected) mode of i386
     dd header_end - header_start                ; header length

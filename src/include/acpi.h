@@ -125,7 +125,6 @@ typedef struct __attribute__((packed)) ACPI {
 
 extern ACPI acpi;
 
-void check_RSDP_t_checksum(RSDP_t* table);
 void check_XSDT_t_checksum(XSDP_t* table);
 void parse_XSDT(ACPI_Table_Header* XSDT);
 #endif

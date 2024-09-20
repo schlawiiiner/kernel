@@ -3,6 +3,7 @@
 #include "../../src/include/graphics.h"
 #include "../../src/include/apic.h"
 #include "../../src/include/cpaging.h"
+#include "../../src/include/ioapic.h"
 
 /*see apic.asm*/
 extern uint32_t enable_APIC(void);
@@ -19,16 +20,15 @@ void parse_MADT() {
         switch (base[offset]){
         case 0:
             MADT_processor_local_APIC* entry0 = (MADT_processor_local_APIC*)(base+offset);
-            
             offset+= entry0->Length;
             break;
         case 1:
-            MADT_IO_APIC* entry1 = (MADT_IO_APIC*)(base+offset);;
+            MADT_IO_APIC* entry1 = (MADT_IO_APIC*)(base+offset);
+            init_IOAPIC((uint32_t*)(uint64_t)entry1->IO_APIC_Address);
             offset+= entry1->Length;
             break;
         case 2:
             MADT_IO_Interrpt_Source_Override* entry2 = (MADT_IO_Interrpt_Source_Override*)(base+offset);
-            
             offset+= entry2->Length;
             break;
         case 3:
