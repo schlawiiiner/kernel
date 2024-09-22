@@ -138,8 +138,8 @@ void kernelmain(BootInformation* multiboot_structure, unsigned int magicnumber) 
     }
     
     init_APIC();
-    parse_MADT();
-    //parse_MCFG();
+    //parse_MADT();
+    enumerate_devices();
     //set_timer();
     
 }

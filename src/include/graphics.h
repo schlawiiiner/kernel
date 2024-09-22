@@ -34,6 +34,7 @@ void put_char(char character);
 void fill_screen(uint32_t color);
 void printf(char* string);
 void printhex(uint64_t integer);
+void printdec(uint64_t integer);
 void printbin(uint64_t integer);
 void set_color(uint32_t foreground, uint32_t background);
 void set_cursor(uint32_t x, uint32_t y);

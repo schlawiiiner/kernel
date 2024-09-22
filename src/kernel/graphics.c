@@ -99,6 +99,28 @@ void printhex(uint64_t integer) {
     }
 }
 
+void printdec(uint64_t integer) {
+    if (integer == 0) {
+        put_char('0');  // Special case for zero
+        return;
+    }
+
+    char buffer[20]; // Buffer to store the digits (enough for 64-bit integers)
+    int index = 0;
+
+    // Convert the integer to a string in reverse order
+    while (integer > 0) {
+        int digit = integer % 10; // Get the last digit
+        buffer[index++] = (char)(digit + '0'); // Store it as a character
+        integer /= 10; // Remove the last digit
+    }
+
+    // Print the digits in the correct order
+    for (int i = index - 1; i >= 0; i--) {
+        put_char(buffer[i]);
+    }
+}
+
 void printbin(uint64_t integer) {
     printf("0b");
     for (int i = 63; i >= 0; i--) {
@@ -135,7 +157,7 @@ void init_framebuffer(FramebufferInfo* framebuffer_info) {
     if (((fb.height*fb.pitch) % PAGE_SIZE) != 0) {
         n_pages_for_fb += 1; 
     }
-    fb.address = (uint32_t*)map_vmem_to_pmem(framebuffer_info->framebuffer_addr, n_pages_for_fb);
+    fb.address = (uint32_t*)map_vmem_to_pmem(framebuffer_info->framebuffer_addr, n_pages_for_fb, 1, 0, 0, 0);
 }
 
 void init_graphics(FramebufferInfo* framebuffer_info) {

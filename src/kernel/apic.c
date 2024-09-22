@@ -153,7 +153,7 @@ void set_timer() {
 }
 
 void init_APIC(void) {
-    if (identity_map(APIC_BASE, 1)) {
+    if (identity_map(APIC_BASE, 1, 1, 0, 0, 0)) {
         /*catch error*/
     }
     uint32_t err_code = enable_APIC(); 

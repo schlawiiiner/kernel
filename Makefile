@@ -3,8 +3,8 @@ NASMFLAGS = -felf64
 GCCFLAGS = -nostdlib -fno-builtin -fno-exceptions -ffreestanding -mno-red-zone -fno-leading-underscore 
 INCLUDES = -I$(PWD)
 
-objects = bin/loader.o bin/kernel.o bin/interrupts.o bin/graphics.o bin/font.o bin/serial_port.o bin/acpi.o bin/apic.o bin/ioapic.o bin/cpaging.o bin/pci.o
-asm_files = src/boot/check.asm src/boot/interrupts.asm src/boot/loader.asm src/boot/multiboot2.asm src/boot/paging.asm src/boot/sysvar.asm src/boot/apic.asm
+objects = bin/loader.o bin/kernel.o bin/interrupts.o bin/graphics.o bin/font.o bin/serial_port.o bin/acpi.o bin/apic.o bin/ioapic.o bin/cpaging.o bin/pci.o bin/xhci.o bin/msi.o
+asm_files = src/boot/check.asm src/boot/interrupts.asm src/boot/loader.asm src/boot/multiboot2.asm src/boot/paging.asm src/boot/sysvar.asm src/boot/apic.asm src/boot/device.asm
 
 bin/kernel.o: src/kernel/kernel.c
 	@gcc $(GCCFLAGS) $(INCLUDES) -O2 -o $@ -c $<  
@@ -34,6 +34,12 @@ bin/ioapic.o: src/kernel/ioapic.c
 	@gcc $(GCCFLAGS) $(INCLUDES) -O2 -o $@ -c $< 
 
 bin/pci.o: src/kernel/pci.c
+	@gcc $(GCCFLAGS) $(INCLUDES) -O2 -o $@ -c $<
+
+bin/xhci.o: src/driver/xhci.c
+	@gcc $(GCCFLAGS) $(INCLUDES) -O2 -o $@ -c $<
+
+bin/msi.o: src/kernel/msi.c
 	@gcc $(GCCFLAGS) $(INCLUDES) -O2 -o $@ -c $<
 
 bin/loader.o: $(asm_files)

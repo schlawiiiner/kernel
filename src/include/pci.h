@@ -128,5 +128,54 @@ typedef struct __attribute__((packed)) PCIHeaderType2 {
     uint32_t _16_Bit_PC_Card_Legacy_Mode_Base_Address;
 } PCIHeaderType2;
 
-void parse_MCFG();
+/*
+-----------------------------------------------------------
+OS specific structures, generated during device enumeration
+may be extended in future
+-----------------------------------------------------------
+*/
+typedef struct __attribute__((packed)) PCI_BAR {
+    uint64_t base_address;
+    uint32_t size;
+    uint8_t present;        //if zero BAR is not used else it is used
+    uint8_t type;           //if zero IO space else MMIO
+    uint8_t prefetchable;   //if zero not prefetchable else prefetchable
+    uint8_t addr_range;     //if zero 32-Bit else 64-Bit BAR
+} PCI_BAR;
+
+
+typedef struct __attribute__((packed)) PCI_DEV {
+    uint16_t vendor;
+    uint16_t device;
+
+    uint8_t revision;
+    uint8_t prog_if;
+    uint8_t subclass;
+    uint8_t class;
+
+    uint8_t bus;
+    uint8_t slot;
+    uint8_t function;
+    uint8_t hdr_type;
+
+    PCIHeader* PCI_Config_Space;
+    PCI_BAR bars[6];
+
+    uint16_t irq;
+
+    uint16_t msi_cap_offset;
+    uint16_t msix_cap_offset;
+    uint16_t pcie_cap_offset;
+
+    uint32_t reserved; //just for 8 byte allignement
+} PCI_DEV;
+
+typedef struct __attribute__((packed)) PCI_DEV_List {
+    uint64_t number_devices;
+    PCI_DEV devices[100];
+} PCI_DEV_List;
+
+extern PCI_DEV_List device_list;
+
+void enumerate_devices();
 #endif

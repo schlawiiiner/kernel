@@ -1,2 +1,3 @@
--apic errors do not work in qemu (on real hardware they do)
--handle different interrupts properly. Currently they are all handled by one irq_handler
+- apic errors do not work in qemu (on real hardware they do)
+- handle different interrupts properly. Currently they are all handled by one irq_handler
+- during PCI enumeration currently only Header Type 0 are mapped to memory

@@ -40,18 +40,20 @@ loop:
     hlt
     jmp loop
 
-%include "src/boot/sysvar.asm"
-%include "src/boot/check.asm"
-%include "src/boot/paging.asm"
-%include "src/boot/interrupts.asm"
-%include "src/boot/apic.asm"
-
 ; Prints the error code to the serial port
 bits 32
 error:
     mov dx, 0x3f8
     out dx, al
     hlt
+
+%include "src/boot/sysvar.asm"
+%include "src/boot/check.asm"
+%include "src/boot/paging.asm"
+%include "src/boot/interrupts.asm"
+%include "src/boot/apic.asm"
+%include "src/boot/device.asm"
+
 
 section .data
 GDT:

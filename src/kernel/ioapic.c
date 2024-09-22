@@ -29,7 +29,7 @@ void write_redirection_entry(uint32_t* IOAPIC_base, uint8_t irq, int vector, int
 
 void init_IOAPIC(uint32_t* IOAPIC_base) {
     //registers are memory indexed
-    identity_map((uint64_t)IOAPIC_base, 1);
+    identity_map((uint64_t)IOAPIC_base, 1, 1, 0, 0, 0);
     uint32_t n_vectors = (read_IOAPIC_reg(IOAPIC_base, 0x1) >> 16) & 0xff;
     //timer
     write_redirection_entry(IOAPIC_base, 2 , 0x21, 0,0,0,0,0,0);

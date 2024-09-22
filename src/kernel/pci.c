@@ -5,46 +5,21 @@
 #include "../../src/include/cpaging.h"
 #include "../../src/include/acpi.h"
 
-
-void enable_MSIX() {
-
-}
-
-void __attribute__((optimize("O0"))) dump_MSI_capability(uint32_t* msi_capability) {
-    for (int i = 0; i < 6; i++) {
-        printbin(msi_capability[i]);
-        printf("\n");
-    }
-}
-
-
-void __attribute__((optimize("O0"))) enable_MSI(PCIHeaderType0* device, uint32_t* msi_capability) {
-    int num_msi_vectors = ((msi_capability[0] >> 17) & 0b111) + 1;
-    int capable_of_64_bit = ((msi_capability[0] >> 23) & 0b1);
-
-    uint32_t msi_addr =  msi_capability[1];
-    msi_addr &= 0b111111110000;
-    msi_addr |= (uint32_t)(0xfee << 20);
-    msi_capability[1] = msi_addr;
-
-    uint32_t msi_data_low = msi_capability[3];
-    msi_data_low &= ~0b1100011111111111;
-    msi_data_low |= 0x23;
-    msi_capability[3] = msi_data_low;
-    msi_capability[4] = 0;
-    msi_capability[5] = 0;
-    msi_capability[0] |= (1 << 16);
-}
-
-
-
-uint32_t* capability(PCIHeaderType0* device, int id) {
+/*Returns the offset of the capability with ID id in the PCI configuration space, if not present returns zero as offset*/
+uint16_t capability(PCIHeader* device, int id) {
     if ((device->Status & (1 << 4)) >> 4) {
-        uint32_t* cap =  (uint32_t*)((device->Capabilities_Pointer & 0b11111100) + (uint64_t)device);
-        uint32_t next_ptr = (cap[0] >> 8) & 0xff;
+        uint32_t* cap;
+        if (device->Header_Type == 0x0) {
+            cap =  (uint32_t*)((((PCIHeaderType0 *)device)->Capabilities_Pointer & 0b11111100) + (uint64_t)device);
+        } else if (device->Header_Type == 0x1) {
+            cap =  (uint32_t*)((((PCIHeaderType1 *)device)->Capability_Pointer & 0b11111100) + (uint64_t)device);
+        } else {
+            cap =  (uint32_t*)((((PCIHeaderType2 *)device)->Offset_Of_Capabilities_List & 0b11111100) + (uint64_t)device);
+        }
+        uint16_t next_ptr = (cap[0] >> 8) & 0xff;
         while (next_ptr != 0) {
             if ((cap[0] & 0xff) == id) {
-                return cap;
+                return next_ptr;
             }
             cap = (uint32_t *)(next_ptr + (uint64_t)device);
             next_ptr = (cap[0] >> 8) & 0xff;
@@ -53,68 +28,196 @@ uint32_t* capability(PCIHeaderType0* device, int id) {
     return 0x0;
 }
 
+void __attribute__((optimize("O0"))) map_32_BAR(uint32_t* bar_ptr, int bar_number, int device_number) {
+    uint32_t bar = bar_ptr[0];
+    bar_ptr[0] = 0xffffffff;
+    uint32_t size = bar_ptr[0] & 0xFFFFFFF0;
+    bar_ptr[0] = bar;
+    if (size) {
+        //BAR is used
+        uint64_t addr = (uint64_t)(bar & 0xfffffff0);
+        uint64_t offset = addr % PAGE_SIZE;
+        uint64_t page_addr = addr - offset;
+        size = ~size + 1 + offset;
+        int n_pages = size / PAGE_SIZE;
+        if (size % PAGE_SIZE) {
+            n_pages++;
+        }
+        int cache_disable = 1;
+        if (bar & 0b1000) {
+            //prefetchable
+            cache_disable = 0;
+        }
+        io_map(page_addr, n_pages, 1, 0, cache_disable, cache_disable);
 
-void device0(PCIHeaderType0* device) {
-    uint32_t* cap = capability(device, 0x11);
-    printhex(device->Class_Code);
-    printf(" ");
-    printhex(device->Subclass);
-    printf(" ");
-    printhex(device->Prog_IF);
-    if (cap) {
-        printf(": MSI-X\n");
-        enable_MSIX();
+        device_list.devices[device_number].bars[bar_number].base_address = addr;
+        device_list.devices[device_number].bars[bar_number].addr_range = 0x0;
+        device_list.devices[device_number].bars[bar_number].prefetchable = (uint8_t)!cache_disable;
+        device_list.devices[device_number].bars[bar_number].present = 0x1;
+        device_list.devices[device_number].bars[bar_number].size = size;
+        device_list.devices[device_number].bars[bar_number].type = 0x1;
     } else {
-        cap = capability(device, 0x05);
-        if (cap) {
-            printf(": MSI\n");
-            device->Command |= 0b111;
-            device->Command |= (1 << 10);
-            enable_MSI(device, cap);
+        //BAR is not used
+        device_list.devices[device_number].bars[bar_number].present = 0x0;
+    }
+}
+
+void __attribute__((optimize("O0"))) map_IO_BAR(uint32_t* bar_ptr, int bar_number, int device_number) {
+    uint32_t bar = bar_ptr[0];
+    bar_ptr[0] = 0xffffffff;
+    uint32_t size = (uint32_t)(bar_ptr[0] & 0xfffffffc);
+    bar_ptr[0] = bar;
+    if (size) {
+        //BAR is used
+        device_list.devices[device_number].bars[bar_number].base_address = bar & (~(uint32_t)0b1);
+        device_list.devices[device_number].bars[bar_number].present = 0x1;
+        device_list.devices[device_number].bars[bar_number].size = ~size+1;
+        device_list.devices[device_number].bars[bar_number].type = 0x0;
+    } else {
+        //BAR is not used
+        device_list.devices[device_number].bars[bar_number].present = 0x0;
+    }
+}
+
+void __attribute__((optimize("O0"))) map_64_BAR(uint32_t* bar_ptr, int bar_number, int device_number) {
+    uint32_t bara = bar_ptr[0];
+    uint32_t barb = bar_ptr[1];
+    bar_ptr[0] = 0xffffffff;
+    bar_ptr[1] = 0xffffffff;
+    uint64_t size = ((uint64_t)bar_ptr[1] << 32) | (uint64_t)(bar_ptr[0] & 0xFFFFFFF0);
+    bar_ptr[0] = bara; 
+    bar_ptr[1] = barb;
+    if (size) {
+        //BAR is used
+        uint64_t addr = ((uint64_t)barb << 32)| (uint64_t)(bara & 0xfffffff0);
+        uint64_t offset = addr % PAGE_SIZE;
+        uint64_t page_addr = addr - offset;
+        size = ~size + 1 + offset;
+        int n_pages = size / PAGE_SIZE;
+        if (size % PAGE_SIZE) {
+            n_pages++;
+        }
+        int cd = 1; //cache disable
+        if (bara & 0b1000) {
+            //prefetchable
+            cd = 0;
+        }
+        io_map(page_addr, n_pages, 1, 0, cd, cd);
+
+        for (int i = 0; i < 2; i++) {
+            device_list.devices[device_number].bars[bar_number+i].base_address = addr;
+            device_list.devices[device_number].bars[bar_number+i].addr_range = 0x1;
+            device_list.devices[device_number].bars[bar_number+i].prefetchable = (uint8_t)!cd;
+            device_list.devices[device_number].bars[bar_number+i].present = 0x1;
+            device_list.devices[device_number].bars[bar_number+i].size = size;
+            device_list.devices[device_number].bars[bar_number+i].type = 0x1;
+        }
+    } else {
+        //BAR is not used
+        device_list.devices[device_number].bars[bar_number].present = 0x0;
+        device_list.devices[device_number].bars[bar_number+1].present = 0x0;
+    }
+}
+
+void __attribute__((optimize("O0"))) map_device(PCIHeaderType0* device, int device_number) {
+    uint32_t *barx = (uint32_t*)((uint64_t)device + 0x10);
+    int x = 0;
+    while (x < 6) {
+        if (barx[x] & 0b1) {
+            //IO
+            x+=1;
         } else {
-            printf(": NAN\n");
+            //MMIO
+            switch (barx[x] & 0b110) {
+            case 0b000: {
+                //32 Bit
+                map_32_BAR(barx+x, x, device_number);
+                x+=1;
+                break;
+            }
+            case 0b100: {
+                //64 Bit
+                map_64_BAR(barx+x, x, device_number);
+                x+=2;
+                break;
+            }
+            default:
+                //ERROR
+                printf("ERROR: Invalid BAR");
+                while(1);
+                break;
+            }
         }
-    } 
+    }
 }
 
-void analyze_device(PCIHeader* header) {
-    if (header->Vendor_ID != 0xffff) {
-        switch (header->Header_Type & 0x3) {
-        case 0x0:
-            device0(((PCIHeaderType0*)header));
-            break;
-        case 0x1:
-            /* code */
-            break;
-        case 0x2:
-            /* code */
-            break;
-        default:
-            printf("ERROR");
-            while(1);
-            break;
-        }
-    } 
-    return;
+/*This function adds the device to the global device list*/
+void add_device(MCFG_entry* entry, int bus, int slot, int func) {
+    PCIHeader* device = (PCIHeader*)((uint64_t)(entry->base_address) + (bus << 20 | slot << 15 | func << 12));
+    if (device->Vendor_ID == 0xffff) {
+        return;
+    }
+    int n = device_list.number_devices;
+    device_list.devices[n].vendor = device->Vendor_ID;
+    device_list.devices[n].device = device->Device_ID;
+
+    device_list.devices[n].revision = device->Revision_ID;
+    device_list.devices[n].prog_if = device->Prog_IF;
+    device_list.devices[n].subclass = device->Subclass;
+    device_list.devices[n].class = device->Class_Code;
+
+    device_list.devices[n].bus = bus;
+    device_list.devices[n].slot = slot;
+    device_list.devices[n].function = func;
+    device_list.devices[n].hdr_type = device->Header_Type;
+
+    if (device_list.devices[n].hdr_type == 0x0) {
+        map_device((PCIHeaderType0*)device, n);
+    }
+
+    device_list.devices[n].PCI_Config_Space = device;
+    
+    device_list.devices[n].irq = 0;
+
+    device_list.devices[n].msi_cap_offset = capability(device, 0x5);
+    device_list.devices[n].msix_cap_offset = capability(device, 0x11);
+    device_list.devices[n].pcie_cap_offset = capability(device, 0x10);
+
+    device_list.number_devices++;
 }
 
+void dump_device(int id) {
+    printf("-------------------------------------------\n");
+    printf("Vendor ID: ");
+    printhex(device_list.devices[id].vendor);
+    printf("\nDevice ID: ");
+    printhex(device_list.devices[id].device);
+    printf("\nClass    : ");
+    printhex((device_list.devices[id].class << 16) | (device_list.devices[id].subclass << 8) | (device_list.devices[id].prog_if));
+    printf("\n-------------------------------------------\n\n");
+}
+void dump_devices() {
+    for (int i = 0; i < device_list.number_devices; i++) {
+        dump_device(i);
+    }
+}
 
-void parse_MCFG() {
+void enumerate_devices() {
     if (!(acpi.Flags & 0b010)) {
-        printf("ERROR: No MCFG table present");
+        printf("ERROR: MCFG table not present");
         while(1);
     }
-    for (int offset = 44; offset < acpi.MCFG->Length; offset+=16) {
+    device_list.number_devices = 0;
+    for (int offset = 44; offset < acpi.MCFG->Length; offset+=sizeof(MCFG_entry)) {
         MCFG_entry* entry = (MCFG_entry*)((uint64_t)acpi.MCFG + offset);
         uint64_t addr = entry->base_address;
-        for (int bus = entry->start_PCI_bus_number; bus < entry->end_PCI_bus_number; bus++) {
-            for (int device = 0; device < 32; device++) {
+        for (int bus = entry->start_PCI_bus_number; bus <= entry->end_PCI_bus_number; bus++) {
+            for (int slot = 0; slot < 32; slot++) {
                 for (int func = 0; func < 8; func++) {
-                    PCIHeader* phy_addr = (PCIHeader*)(addr + (bus << 20 | device << 15 | func << 12));
-                    analyze_device(phy_addr);
+                    add_device(entry, bus, slot, func);
                 }
             }
         }
     }
-
+    dump_devices();
 }

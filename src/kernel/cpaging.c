@@ -128,11 +128,11 @@ uint64_t vmalloc(int size) {
     while (1);
 }
 
-uint64_t kmalloc(int size) {
+uint64_t kmalloc(int size, int read_write, int user_supervisor, int write_through, int cache_disable) {
     uint64_t base_addr = vmalloc(size);
     int start_index = (int)(base_addr/0x200000);
     for (int i = start_index; i < start_index + size; i++) {
-        p2_table[i] = pop_page() | 0x83;
+        p2_table[i] = pop_page() | (cache_disable << 4) | (write_through << 3) | (user_supervisor << 2) | (read_write << 1) | 0x81;
     }
     return base_addr;
 }
@@ -160,7 +160,7 @@ void kmfree(uint64_t base_addr, int size) {
 }
 
 /*TODO: catch error and free the removed pages*/
-uint64_t map_vmem_to_pmem(uint64_t base_addr, int size) {
+uint64_t map_vmem_to_pmem(uint64_t base_addr, int size, int read_write, int user_supervisor, int write_through, int cache_disable) {
     uint64_t virtual_base_addr = vmalloc(size);
     if (base_addr < mi.memory_size) {
         for (int i = 0; i < size; i++) {
@@ -177,18 +177,19 @@ uint64_t map_vmem_to_pmem(uint64_t base_addr, int size) {
     int base_i  = (int)(virtual_base_addr/0x200000);
     uint64_t virtual_offset = 0x0;
     for (int i = base_i; i < size+base_i; i++) {
-        p2_table[i] = (base_addr + virtual_offset) | 0x83;
+        p2_table[i] = (base_addr + virtual_offset) | (cache_disable << 4) | (write_through << 3) | (user_supervisor << 2) | (read_write << 1) | 0x81;
         asm volatile ("invlpg (%0)" ::"r" (virtual_base_addr + virtual_offset) : "memory");
         virtual_offset += 0x200000;
     }
     return virtual_base_addr;
 }
 
-int identity_map(uint64_t base_addr, int size) {
+//TODO: memory mapped could be partially in RAM and MMIO-space
+int identity_map(uint64_t base_addr, int size, int read_write, int user_supervisor, int write_through, int cache_disable) {
     if (base_addr < mi.memory_size) {
         for (int i = 0; i < size; i++) {
             if (remove_page(base_addr + i*0x200000)) {
-                /*the i-th physical page is already mapped, so we free the other pages*/
+                /*the i-th physical page is already mapped, so we free the other pages and return an error code*/
                 for (int j = 0; j < i; j++) {
                     push_page(base_addr + i*0x200000);
                 }
@@ -197,17 +198,37 @@ int identity_map(uint64_t base_addr, int size) {
         }
     } else {
         //MMIO, likely configuration space for hardware.
-        //pass through
+        //pass through, since those should be identity mapped anyway
     }
  
     int base_i  = (int)(base_addr/0x200000);
     uint64_t offset = 0x0;
     for (int i = base_i; i < size+base_i; i++) {
-        p2_table[i] = (base_addr + offset) | 0x83;
+        p2_table[i] = (base_addr + offset)  | (cache_disable << 4) | (write_through << 3) | (user_supervisor << 2) | (read_write << 1) | 0x81;
         asm volatile ("invlpg (%0)" ::"r" (base_addr + offset) : "memory");
         offset += 0x200000;
     }
     return 0;
+}
+
+//This is nearly the same as identity map, only that the mapping is forced, and the function does not abort if the memory space it is already mapped.
+//Reason for this is that this function is ment for the configuration space of hardware, wich could be mapped multiple times. 
+//Like for example the framebuffer which gets mapped in early boot stage, and later during device enumeration.
+void io_map(uint64_t base_addr, int size, int read_write, int user_supervisor, int write_through, int cache_disable) {
+    for (int i = 0; i < size; i++) {
+        uint64_t addr = base_addr + i*0x200000;
+        if (addr < mi.memory_size) {
+            remove_page(addr);
+        }
+    }
+
+    int base_i  = (int)(base_addr/0x200000);
+    uint64_t offset = 0x0;
+    for (int i = base_i; i < size+base_i; i++) {
+        p2_table[i] = (base_addr + offset)  | (cache_disable << 4) | (write_through << 3) | (user_supervisor << 2) | (read_write << 1) | 0x81;
+        asm volatile ("invlpg (%0)" ::"r" (base_addr + offset) : "memory");
+        offset += 0x200000;
+    }
 }
 
 void dump_vmem() {

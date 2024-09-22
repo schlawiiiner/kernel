@@ -19,6 +19,9 @@
     - [ ] FADT
     - [ ] MCFG
 - [ ] PCI
-    - [ ] device enumeration
+    - [x] device enumeration
     - [ ] MSI/MSI-X
 - [ ] MP
+- [ ] driver
+    - [ ] xhci
+    - [ ] filesystem
