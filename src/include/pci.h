@@ -148,10 +148,8 @@ typedef struct __attribute__((packed)) PCI_DEV {
     uint16_t vendor;
     uint16_t device;
 
-    uint8_t revision;
-    uint8_t prog_if;
-    uint8_t subclass;
-    uint8_t class;
+    uint32_t revision;
+    uint32_t class;
 
     uint8_t bus;
     uint8_t slot;
@@ -166,8 +164,6 @@ typedef struct __attribute__((packed)) PCI_DEV {
     uint16_t msi_cap_offset;
     uint16_t msix_cap_offset;
     uint16_t pcie_cap_offset;
-
-    uint32_t reserved; //just for 8 byte allignement
 } PCI_DEV;
 
 typedef struct __attribute__((packed)) PCI_DEV_List {

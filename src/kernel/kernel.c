@@ -5,6 +5,7 @@
 #include "../../src/include/cpaging.h"
 #include "../../src/include/apic.h"
 #include "../../src/include/pci.h"
+#include "../../src/include/xhci.h"
 
 
 extern BootInformationStructure bis;
@@ -108,6 +109,14 @@ void parse_boot_information(BootInformation* boot_information) {
 
 }
 
+void load_drivers() {
+    for (int i = 0; i < device_list.number_devices; i++) {
+        if (device_list.devices[i].class == 0xc0330) {
+            init_xhci_controller(i);
+        } else if (device_list.devices[i].class == 0x30000) {
+        }
+    }
+}
 
 
 void kernelmain(BootInformation* multiboot_structure, unsigned int magicnumber) {
@@ -141,5 +150,5 @@ void kernelmain(BootInformation* multiboot_structure, unsigned int magicnumber) 
     //parse_MADT();
     enumerate_devices();
     //set_timer();
-    
+    load_drivers();
 }

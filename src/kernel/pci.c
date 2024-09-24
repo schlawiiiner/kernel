@@ -119,7 +119,7 @@ void __attribute__((optimize("O0"))) map_64_BAR(uint32_t* bar_ptr, int bar_numbe
     }
 }
 
-void __attribute__((optimize("O0"))) map_device(PCIHeaderType0* device, int device_number) {
+void map_device(PCIHeaderType0* device, int device_number) {
     uint32_t *barx = (uint32_t*)((uint64_t)device + 0x10);
     int x = 0;
     while (x < 6) {
@@ -161,16 +161,13 @@ void add_device(MCFG_entry* entry, int bus, int slot, int func) {
     device_list.devices[n].vendor = device->Vendor_ID;
     device_list.devices[n].device = device->Device_ID;
 
-    device_list.devices[n].revision = device->Revision_ID;
-    device_list.devices[n].prog_if = device->Prog_IF;
-    device_list.devices[n].subclass = device->Subclass;
-    device_list.devices[n].class = device->Class_Code;
+    device_list.devices[n].revision = (uint32_t)device->Revision_ID;
+    device_list.devices[n].class = ((uint32_t)(device->Class_Code) << 16) | ((uint32_t)(device->Subclass) << 8) | (uint32_t)(device->Prog_IF);
 
     device_list.devices[n].bus = bus;
     device_list.devices[n].slot = slot;
     device_list.devices[n].function = func;
-    device_list.devices[n].hdr_type = device->Header_Type;
-
+    device_list.devices[n].hdr_type = device->Header_Type & 0b01111111;
     if (device_list.devices[n].hdr_type == 0x0) {
         map_device((PCIHeaderType0*)device, n);
     }
@@ -193,7 +190,7 @@ void dump_device(int id) {
     printf("\nDevice ID: ");
     printhex(device_list.devices[id].device);
     printf("\nClass    : ");
-    printhex((device_list.devices[id].class << 16) | (device_list.devices[id].subclass << 8) | (device_list.devices[id].prog_if));
+    printhex(device_list.devices[id].class);
     printf("\n-------------------------------------------\n\n");
 }
 void dump_devices() {
@@ -219,5 +216,4 @@ void enumerate_devices() {
             }
         }
     }
-    dump_devices();
 }

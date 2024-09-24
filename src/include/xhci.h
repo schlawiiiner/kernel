@@ -39,5 +39,106 @@
 #define ERSTBA      0x10 	//Event Ring Segment Table Base Address
 #define ERDP        0x18 	//Event Ring Dequeue Pointer 
 
-void init_xhci_controller(PCIHeaderType0* xhci_device);
+static inline uint8_t read_CPLENGTH(uint64_t capability_registers) {
+   return ((uint8_t*)(capability_registers + CPLENGTH))[0];
+}
+
+static inline uint16_t read_HCIVERSION(uint64_t capability_registers) {
+   return ((uint16_t*)(capability_registers + HCIVERSION))[0];
+}
+
+static inline uint32_t read_HCSPARAMS1(uint64_t capability_registers) {
+   return ((uint32_t*)(capability_registers + HCSPARAMS1))[0];
+}
+
+static inline uint32_t read_HCSPARAMS2(uint64_t capability_registers) {
+   return ((uint32_t*)(capability_registers + HCSPARAMS2))[0];
+}
+
+static inline uint32_t read_HCSPARAMS3(uint64_t capability_registers) {
+   return ((uint32_t*)(capability_registers + HCSPARAMS3))[0];
+}
+
+static inline uint32_t read_HCCPARAMS1(uint64_t capability_registers) {
+   return ((uint32_t*)(capability_registers + HCCPARAMS1))[0];
+}
+
+static inline uint32_t read_DBOFF(uint64_t capability_registers) {
+   return ((uint32_t*)(capability_registers + DBOFF))[0];
+}
+
+static inline uint32_t read_RTSOFF(uint64_t capability_registers) {
+   return ((uint32_t*)(capability_registers + RTSOFF))[0];
+}
+
+static inline uint32_t read_HCCPARAMS2(uint64_t capability_registers) {
+   return ((uint32_t*)(capability_registers + HCCPARMS2))[0];
+}
+
+/*Command Registers*/
+
+static inline uint32_t read_USBCMD(uint64_t operational_registers) {
+   return ((uint32_t*)(operational_registers + USBCMD))[0];
+}
+
+static inline uint32_t read_USBSTS(uint64_t operational_registers) {
+   return ((uint32_t*)(operational_registers + USBSTS))[0];
+}
+
+static inline uint32_t read_PAGESIZE(uint64_t operational_registers) {
+   return ((uint32_t*)(operational_registers + PAGESIZE))[0];
+}
+
+static inline uint32_t read_DNCTRL(uint64_t operational_registers) {
+   return ((uint32_t*)(operational_registers + DNCTRL))[0];
+}
+
+static inline uint64_t read_CRCR(uint64_t operational_registers) {
+   return (((uint64_t)((uint32_t*)(operational_registers +  CRCR + 0x04))[0]) << 32) | ((uint32_t*)(operational_registers +  CRCR))[0];
+}
+
+static inline uint64_t read_DCBAAP(uint64_t operational_registers) {
+   return (((uint64_t)((uint32_t*)(operational_registers +  DCBAAP + 0x04))[0]) << 32) | ((uint32_t*)(operational_registers +  DCBAAP))[0];
+}
+
+static inline uint32_t read_CONFIG(uint64_t operational_registers) {
+   return ((uint32_t*)(operational_registers + CONFIG))[0];
+}
+
+
+
+
+
+static inline void  write_USBCMD(uint64_t operational_registers, uint32_t value) {
+   ((uint32_t*)(operational_registers + USBCMD))[0] = value;
+}
+
+static inline void  write_USBSTS(uint64_t operational_registers, uint32_t value) {
+   ((uint32_t*)(operational_registers + USBSTS))[0] = value;
+}
+
+static inline void  write_PAGESIZE(uint64_t operational_registers, uint32_t value) {
+   ((uint32_t*)(operational_registers + PAGESIZE))[0] = value;
+}
+
+static inline void  write_DNCTRL(uint64_t operational_registers, uint32_t value) {
+   ((uint32_t*)(operational_registers + DNCTRL))[0] = value;
+}
+
+static inline void  write_CRCR(uint64_t operational_registers, uint64_t value) {
+   ((uint32_t*)(operational_registers + CRCR))[0] = (uint32_t)value;
+   ((uint32_t*)(operational_registers + CRCR + 0x4))[0] = (uint32_t)(value >> 32);
+}
+
+static inline void  write_DCBAAP(uint64_t operational_registers, uint64_t value) {
+   ((uint32_t*)(operational_registers + DCBAAP))[0] = (uint32_t)value;
+   ((uint32_t*)(operational_registers + DCBAAP + 0x4))[0] = (uint32_t)(value >> 32);
+}
+
+static inline void  write_CONFIG(uint64_t operational_registers, uint32_t value) {
+   ((uint32_t*)(operational_registers + CONFIG))[0] = value;
+}
+
+
+void init_xhci_controller(int device_number);
 #endif
