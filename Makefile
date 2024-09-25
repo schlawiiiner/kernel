@@ -72,6 +72,7 @@ qemu:
 	-smp cores=2 \
 	-device qemu-xhci \
 	-device usb-kbd \
+	-device usb-mouse \
 	-bios /usr/share/ovmf/OVMF.fd \
 	-cdrom test/boot/mykernel.iso \
 	-accel kvm \

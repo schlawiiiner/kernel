@@ -231,8 +231,8 @@ void io_map(uint64_t base_addr, int size, int read_write, int user_supervisor, i
     }
 }
 
-void dump_vmem() {
-    for (int i = 0; i < 0x200*0x200; i++) {
+void dump_vmem(int n) {
+    for (int i = 0; i < 0x200*n; i++) {
         if (p2_table[i] & 0x1) {
             printf("1");
         } else {
@@ -240,6 +240,12 @@ void dump_vmem() {
         }
     }
     printf("\n");
+}
+
+void __attribute__((optimize("O0"))) memset(uint64_t base_addr, uint64_t value, uint32_t size) {
+    for (int i = 0; i < size/8; i++) {
+        ((uint64_t*)base_addr)[i] = value;
+    }
 }
 
 void dump_p2() {

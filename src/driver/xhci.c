@@ -4,6 +4,7 @@
 #include "../../src/include/graphics.h"
 #include "../../src/include/cpaging.h"
 #include "../../src/include/io.h"
+#include "../../src/include/msi.h"
 
 typedef struct TRB {
    uint32_t data_buffer_ptr_low;
@@ -11,28 +12,6 @@ typedef struct TRB {
    uint32_t status;
    uint32_t control;
 } TRB;
-
-void dump_capability_registers(uint64_t capability_registers) {
-   printf("\nCAPLENGTH : ");
-   printhex(read_CPLENGTH(capability_registers));
-   printf("\nHCIVERSION: ");
-   printhex(read_HCIVERSION(capability_registers));
-   printf("\nHCSPARAMS1: ");
-   printhex(read_HCSPARAMS1(capability_registers));
-   printf("\nHCSPARAMS2: ");
-   printhex(read_HCSPARAMS2(capability_registers));
-   printf("\nHCSPARAMS3: ");
-   printhex(read_HCSPARAMS3(capability_registers));
-   printf("\nHCCPARAMS1: ");
-   printhex(read_HCCPARAMS1(capability_registers));
-   printf("\nDBOFF     : ");
-   printhex(read_DBOFF(capability_registers));
-   printf("\nRTSOFF    : ");
-   printhex(read_RTSOFF(capability_registers));
-   printf("\nHCCPARAMS2: ");
-   printhex(read_HCCPARAMS2(capability_registers));
-   printf("\n");
-}
 
 void config_PCI(int device_number) {
    device_list.devices[device_number].PCI_Config_Space->Command |= (1 << 1) | (1 << 2);
@@ -100,8 +79,52 @@ void __attribute__((optimize("O0"))) init_command_ring(uint64_t operational_regi
    write_CRCR(operational_registers, (uint64_t)base_addr);
 }
 
-void __attribute__((optimize("O0"))) init_event_ring(uint64_t operational_registers) {
+void __attribute__((optimize("O0"))) init_event_ring(uint64_t capability_registers, uint64_t runtime_registers) {
+   uint32_t hcsparams1 = read_HCSPARAMS1(capability_registers);
+   int max_interrupters = (int)((hcsparams1 >> 8) & 0x3FF);
+   for (int i = 0; i < max_interrupters; i++) {
+      uint64_t* base_addr = (uint64_t*)kmalloc(1, 1, 0, 0, 0);
+      // Initialize event ring segments (10 segments in total)
+      int n_segments = 10; // Adjust as needed for your design
+      for (int j = 0; j < n_segments; j++) {
+         base_addr[2*j] = (uint64_t)base_addr + 0x1000 * (1 + j); // Segment base
+         base_addr[2*j + 1] = 0x1000; // Segment size
+      }
+      
+      // Initialize the segments to 0
+      for (int j = 0; j < n_segments; j++) {
+         memset(base_addr[2*j], 0x0, (uint32_t)base_addr[2*j + 1]);
+      }
 
+      // Set ERSTSZ
+      uint32_t erstsz = read_ERSTSZ(runtime_registers, i);
+      write_ERSTSZ(runtime_registers, i, (erstsz & 0xffff00) | n_segments);
+
+      // Set ERSTBA
+      uint64_t erstba = read_ERSTBA(runtime_registers, i);
+      write_ERSTBA(runtime_registers, i, (erstba & 0b11111) | (uint64_t)base_addr);
+      
+      // Set ERDP
+      uint64_t erdp = read_ERDP(runtime_registers, i);
+      write_ERDP(runtime_registers, i, (erdp & 0b1111) | ((uint64_t)base_addr + 0x1000));
+
+      write_IMAN(runtime_registers, i, read_IMAN(runtime_registers, i) | (1 << 0));
+   }
+   
+}
+
+void __attribute__((optimize("O0"))) read_event_ring(uint64_t runtime_registers, int interrupter) {
+   uint64_t erdp = read_ERDP(runtime_registers, interrupter);
+   TRB* trb = (TRB*)(erdp & ~0b1111);
+   printhex(trb->data_buffer_ptr_low);
+   printf("\n");
+   printhex(trb->data_buffer_ptr_high);
+   printf("\n");
+   printhex(trb->status);
+   printf("\n");
+   printhex(trb->control);
+   printf("\n\n");
+   write_ERDP(runtime_registers, interrupter, erdp + sizeof(TRB));
 }
 
 
@@ -150,9 +173,19 @@ void __attribute__((optimize("O0"))) init_xhci_controller(int device_number) {
    // 2. Program the Command Ring Dequeue Pointer
    init_command_ring(operational_registers);
    
+   // 3. Program the Event Ring
+   init_event_ring(capability_registers, runtime_registers);
+
+   // enable Interrupts
    uint32_t usbcmd = read_USBCMD(operational_registers);
+   write_USBCMD(operational_registers, usbcmd | (1 << 2));
+
+   // 4. Activate the host controller
+   usbcmd = read_USBCMD(operational_registers);
    usbcmd |= (1 << 0); // Run/Stop bit
    write_USBCMD(operational_registers, usbcmd);
 
    port_info(operational_registers, n_ports);
+   
+   enable_MSIX(device_number);
 }

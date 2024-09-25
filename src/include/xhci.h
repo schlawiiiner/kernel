@@ -106,9 +106,6 @@ static inline uint32_t read_CONFIG(uint64_t operational_registers) {
 }
 
 
-
-
-
 static inline void  write_USBCMD(uint64_t operational_registers, uint32_t value) {
    ((uint32_t*)(operational_registers + USBCMD))[0] = value;
 }
@@ -139,6 +136,54 @@ static inline void  write_CONFIG(uint64_t operational_registers, uint32_t value)
    ((uint32_t*)(operational_registers + CONFIG))[0] = value;
 }
 
+
+/*runtime registers*/
+static inline uint32_t read_IMAN(uint64_t runtime_registers, int interrupter) {
+   return ((uint32_t*)(runtime_registers + IMAN + IRO + interrupter*32))[0];
+}
+
+static inline uint32_t read_IMOD(uint64_t runtime_registers, int interrupter) {
+   return ((uint32_t*)(runtime_registers + IMOD + IRO + interrupter*32))[0];
+}
+
+static inline uint32_t read_ERSTSZ(uint64_t runtime_registers, int interrupter) {
+   return ((uint32_t*)(runtime_registers + ERSTSZ + IRO + interrupter*32))[0];
+}
+
+static inline uint32_t read_ERSTBA(uint64_t runtime_registers, int interrupter) {
+   uint64_t address = runtime_registers + ERSTBA + IRO + interrupter * 32;
+   return ((uint64_t)(((uint32_t*)address)[1]) << 32) | 
+          (uint64_t)(((uint32_t*)address)[0]);
+}
+
+static inline uint64_t read_ERDP(uint64_t runtime_registers, int interrupter) {
+   uint64_t address = runtime_registers + ERDP + IRO + interrupter * 32;
+   return ((uint64_t)(((uint32_t*)address)[1]) << 32) | 
+          (uint64_t)(((uint32_t*)address)[0]);
+}
+
+
+static inline void write_IMAN(uint64_t runtime_registers, int interrupter, uint32_t value) {
+   ((uint32_t*)(runtime_registers + IMAN + IRO + interrupter*32))[0] = value;
+}
+
+static inline void write_IMOD(uint64_t runtime_registers, int interrupter, uint32_t value) {
+   ((uint32_t*)(runtime_registers + IMOD + IRO + interrupter*32))[0] = value;
+}
+
+static inline void write_ERSTSZ(uint64_t runtime_registers, int interrupter, uint32_t value) {
+   ((uint32_t*)(runtime_registers + ERSTSZ + IRO + interrupter*32))[0] = value;
+}
+
+static inline void write_ERSTBA(uint64_t runtime_registers, int interrupter, uint64_t value) {
+   uint64_t address = runtime_registers + ERSTBA + IRO + interrupter * 32;
+   ((uint64_t*)address)[0] = value;
+}
+
+static inline void write_ERDP(uint64_t runtime_registers, int interrupter, uint64_t value) {
+   uint64_t address = runtime_registers + ERDP + IRO + interrupter * 32;
+   ((uint64_t*)address)[0] = value;
+}
 
 void init_xhci_controller(int device_number);
 #endif

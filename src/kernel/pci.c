@@ -7,6 +7,7 @@
 
 /*Returns the offset of the capability with ID id in the PCI configuration space, if not present returns zero as offset*/
 uint16_t capability(PCIHeader* device, int id) {
+    //check if capability list is implemented
     if ((device->Status & (1 << 4)) >> 4) {
         uint32_t* cap;
         if (device->Header_Type == 0x0) {
@@ -19,7 +20,7 @@ uint16_t capability(PCIHeader* device, int id) {
         uint16_t next_ptr = (cap[0] >> 8) & 0xff;
         while (next_ptr != 0) {
             if ((cap[0] & 0xff) == id) {
-                return next_ptr;
+                return (uint16_t)((uint64_t)cap - (uint64_t)device);
             }
             cap = (uint32_t *)(next_ptr + (uint64_t)device);
             next_ptr = (cap[0] >> 8) & 0xff;
