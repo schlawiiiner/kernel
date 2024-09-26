@@ -39,6 +39,18 @@
 #define ERSTBA      0x10 	//Event Ring Segment Table Base Address
 #define ERDP        0x18 	//Event Ring Dequeue Pointer 
 
+typedef struct __attribute__((packed)) xHC {
+   uint64_t capability_registers;
+   uint64_t operational_registers;
+   uint64_t port_registers;
+   uint64_t runtime_registers;
+   uint64_t doorbell_array;
+
+   uint64_t er_dequeue_ptr;
+   uint64_t cr_enqueue_ptr;
+} xHC;
+
+
 static inline uint8_t read_CPLENGTH(uint64_t capability_registers) {
    return ((uint8_t*)(capability_registers + CPLENGTH))[0];
 }

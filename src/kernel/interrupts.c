@@ -1,17 +1,37 @@
 #include "../../src/include/uint.h"
 #include "../../src/include/graphics.h"
 #include "../../src/include/apic.h"
+#include "../../src/include/interrupts.h"
 
 void irq_handler(uint64_t irq) {
+    printdec(irq);
     if(irq == 0x22) {
         apic_err();
     }
     if (irq == 0x23) {
         printf("IPI");
+    } else if (irq == 0x24) {
+        printf(" IOAPIC\n");
     } else {
         printf(".");
     }   
     send_EOI();
+}
+
+void default_handler_func(uint64_t irq) {
+    printdec(irq);
+    printf("\n");
+    return;
+}
+
+void init_default_handler() {
+    for (int i = 0; i < 256; i++) {
+        irq_handlers[i] = (func_ptr_t)default_handler_func;
+    }
+}
+//mapping a function to an irq that corresponds to an cpu exception has no effect
+void map_isr(uint8_t irq, func_ptr_t function) {
+    irq_handlers[irq] = function;
 }
 
 void kernel_panic(char* str, int error_code, uint64_t*rsp) {

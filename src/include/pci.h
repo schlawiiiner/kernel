@@ -164,6 +164,8 @@ typedef struct __attribute__((packed)) PCI_DEV {
     uint16_t msi_cap_offset;
     uint16_t msix_cap_offset;
     uint16_t pcie_cap_offset;
+
+    uint64_t driver_config_space;
 } PCI_DEV;
 
 typedef struct __attribute__((packed)) PCI_DEV_List {

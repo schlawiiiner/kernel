@@ -4,6 +4,7 @@
 #include "../../src/include/apic.h"
 #include "../../src/include/cpaging.h"
 #include "../../src/include/ioapic.h"
+#include "../../src/include/interrupts.h"
 
 /*see apic.asm*/
 extern uint32_t enable_APIC(void);

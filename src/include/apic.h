@@ -60,7 +60,7 @@ void inline set_timer_mode(uint8_t mode) {
     lvt_timer_reg[0] = (lvt_timer_reg[0] & ~0x60000) | ((mode & 0x3) << 17);
 }
 
-void inline send_EOI(void) {
+static inline void send_EOI(void) {
     uint32_t * EOI_register = (uint32_t*)(APIC_BASE + EOI_OFFSET);
     EOI_register[0] = 0;
 }

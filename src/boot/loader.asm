@@ -3,6 +3,8 @@
 
 %include "src/boot/multiboot2.asm"
 global loader
+global IDT
+global irq_handlers
 extern kernelmain
 bits 32
 
@@ -87,3 +89,5 @@ magic:
     resb 4
 boot_info:
     resb 4
+irq_handlers:
+    resb 4096

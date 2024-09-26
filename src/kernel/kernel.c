@@ -6,7 +6,7 @@
 #include "../../src/include/apic.h"
 #include "../../src/include/pci.h"
 #include "../../src/include/xhci.h"
-
+#include "../../src/include/interrupts.h"
 
 extern BootInformationStructure bis;
 
@@ -145,9 +145,9 @@ void kernelmain(BootInformation* multiboot_structure, unsigned int magicnumber) 
         ACPI_Table_Header* xsdt = (ACPI_Table_Header*)(bis.ACPI_new_RSDP->XsdtAddress);
         parse_XSDT(xsdt);
     }
-    
+    init_default_handler();
     init_APIC();
-    //parse_MADT();
+    parse_MADT();
     enumerate_devices();
     //set_timer();
     load_drivers();

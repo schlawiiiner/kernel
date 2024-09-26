@@ -137,6 +137,15 @@ uint64_t kmalloc(int size, int read_write, int user_supervisor, int write_throug
     return base_addr;
 }
 
+//this allocates a page (2MiB) and identity maps it and returns the physical address
+uint64_t kmalloc_phys_page(int read_write, int user_supervisor, int write_through, int cache_disable) {
+    uint64_t addr = pop_page();
+    int index = addr/0x200000;
+    p2_table[index] = addr | (cache_disable << 4) | (write_through << 3) | (user_supervisor << 2) | (read_write << 1) | 0x81;
+    asm volatile ("invlpg (%0)" ::"r" (addr) : "memory");
+    return addr;
+}
+
 void kmfree(uint64_t base_addr, int size) {
     if (base_addr < mi.memory_size) {
         int base_i = (int)(base_addr/0x200000);

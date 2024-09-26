@@ -29,6 +29,24 @@ uint16_t capability(PCIHeader* device, int id) {
     return 0x0;
 }
 
+void dump_capability(PCIHeader* device) {
+    if (device->Header_Type != 0) {
+        printf(" nan\n");
+        return;
+    }
+    if ((device->Status & (1 << 4)) >> 4) {
+        uint32_t* cap = (uint32_t*)((((PCIHeaderType0 *)device)->Capabilities_Pointer & 0b11111100) + (uint64_t)device);
+        uint16_t next_ptr = (cap[0] >> 8) & 0xff;
+        while (next_ptr != 0) {
+            printhex(cap[0] & 0xff);
+            printf(" ");
+            cap = (uint32_t *)(next_ptr + (uint64_t)device);
+            next_ptr = (cap[0] >> 8) & 0xff;
+        }
+    }
+    printf(" nan\n");
+}
+
 void __attribute__((optimize("O0"))) map_32_BAR(uint32_t* bar_ptr, int bar_number, int device_number) {
     uint32_t bar = bar_ptr[0];
     bar_ptr[0] = 0xffffffff;
