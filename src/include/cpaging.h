@@ -4,7 +4,7 @@
 #include "../../src/include/bootinfo.h"
 
 #define PAGE_SIZE               (uint64_t)0x200000
-#define NPAGES                  (int)0x2000
+#define NPAGES                  (int)0x40000
 
 typedef struct __attribute__((packed)) MemoryInformation {
     uint64_t memory_size;
@@ -19,4 +19,5 @@ int identity_map(uint64_t base_addr, int size, int read_write, int user_supervis
 void io_map(uint64_t base_addr, int size, int read_write, int user_supervisor, int write_through, int cache_disable);
 void dump_p2(void);
 void memset(uint64_t base_addr, uint64_t value, uint32_t size);
+void memcopy(uint64_t* source, uint64_t* destination, int size);
 #endif

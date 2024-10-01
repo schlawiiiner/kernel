@@ -4,11 +4,10 @@
 #include "../../src/include/graphics.h"
 #include "../../src/include/cpaging.h"
 #include "../../src/include/apic.h"
+#include "../../src/include/ioapic.h"
 #include "../../src/include/pci.h"
 #include "../../src/include/xhci.h"
 #include "../../src/include/interrupts.h"
-
-extern BootInformationStructure bis;
 
 void parse_boot_information(BootInformation* boot_information) {
     uint64_t base = (uint64_t) boot_information;
@@ -112,8 +111,15 @@ void parse_boot_information(BootInformation* boot_information) {
 void load_drivers() {
     for (int i = 0; i < device_list.number_devices; i++) {
         if (device_list.devices[i].class == 0xc0330) {
+            activate_pins();
             init_xhci_controller(i);
+            int gsi = find_pins();
+            deactivate_pins();
+            route_hardware_interrupt(i+32, 23, (func_ptr_t)interrupt_handler);
+            interrupt_handler(i+32);
+            place_no_op(i);
         } else if (device_list.devices[i].class == 0x30000) {
+
         }
     }
 }
@@ -148,6 +154,7 @@ void kernelmain(BootInformation* multiboot_structure, unsigned int magicnumber) 
     init_default_handler();
     init_APIC();
     parse_MADT();
+    init_IOAPIC();
     enumerate_devices();
     //set_timer();
     load_drivers();

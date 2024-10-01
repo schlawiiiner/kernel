@@ -5,10 +5,16 @@
 #include "../../src/include/cpaging.h"
 #include "../../src/include/ioapic.h"
 #include "../../src/include/interrupts.h"
+#include "../../src/include/io.h"
 
 /*see apic.asm*/
 extern uint32_t enable_APIC(void);
 extern uint32_t remap_APIC_registers(uint32_t addr);
+
+/*see mp.asm*/
+extern void trampoline_start(void);
+extern volatile uint8_t vacant[];
+extern volatile uint8_t count[];
 
 void parse_MADT() {
     if (!(acpi.Flags & 0b001)) {
@@ -25,7 +31,7 @@ void parse_MADT() {
             break;
         case 1:
             MADT_IO_APIC* entry1 = (MADT_IO_APIC*)(base+offset);
-            init_IOAPIC((uint32_t*)(uint64_t)entry1->IO_APIC_Address);
+            map_IOAPIC_MMIO(entry1);            
             offset+= entry1->Length;
             break;
         case 2:
@@ -34,12 +40,10 @@ void parse_MADT() {
             break;
         case 3:
             MADT_IO_Non_maskable_interrupt_source* entry3 = (MADT_IO_Non_maskable_interrupt_source*)(base+offset);
-            
             offset+= entry3->Length;
             break;
         case 4:
             MADT_IO_Non_maskable_interrupt* entry4 = (MADT_IO_Non_maskable_interrupt*)(base+offset);
-            
             offset+= entry4->Length;
             break;
         case 5:
@@ -77,21 +81,31 @@ void init_err() {
     error_reg[0] = error;
 }
 
-void  __attribute__((optimize("O0"))) send_IPI(int APIC_ID, int vector) {
+void  __attribute__((optimize("O0"))) send_IPI(int APIC_ID, int destination_shorthand, int trigger_mode, int level, int destination_mode, int delivery_mode, int vector) {
+
+    
     uint32_t* icr = (uint32_t*)(APIC_BASE + ICR_HIGH_OFFSET);
 
     uint32_t icr_read = icr[0];
     icr_read &= 0xffffff;
     icr_read |= APIC_ID << 0x18;
     icr[0] = icr_read;
+
     icr = (uint32_t*)(APIC_BASE + ICR_LOW_OFFSET);
+
+    int timeout = 0x100000;
+    while (icr[0] & (1 << 12)) {
+        if (timeout == 0) {
+            printf("ERROR: timeout while waiting to send IPI");
+            while(1);
+        }
+        timeout--;
+    }
 
     icr_read = icr[0];
     icr_read &= 0b11111111111100110011000000000000;
-    icr_read |= vector;
-    icr[0] = icr_read;
-    
-    
+    icr_read |= ((destination_shorthand & 0b11) << 18) | ((trigger_mode & 0b1) << 15) | ((level & 0b1) << 14) | ((destination_mode & 0b1) << 11) | ((delivery_mode & 0b111) << 8) | (vector & 0xff);
+    icr[0] = icr_read;   
 }
 
 void __attribute__((optimize("O0"))) apic_err() {
@@ -153,6 +167,25 @@ void set_timer() {
     set_initial_count(0xf00000);
 }
 
+void __attribute__((optimize("O0"))) init_aps(void) {
+    
+    vacant[0] = 0;
+    count[0] = 1;
+
+    //INIT IPI
+    send_IPI(0, 0b11, 0, 1, 0, 0b101, 0);
+    int timeout = 0x100000;
+    while(timeout != 0) {
+        timeout--;
+    }
+    //SIPI
+    send_IPI(0, 0b11, 0, 1, 0, 0b110, (uint8_t)((uint64_t)trampoline_start/0x1000));
+    timeout = 0x200000;
+    while(timeout != 0) {
+        timeout--;
+    }
+}
+
 void init_APIC(void) {
     if (identity_map(APIC_BASE, 1, 1, 0, 0, 0)) {
         /*catch error*/
@@ -170,4 +203,5 @@ void init_APIC(void) {
     uint32_t *spurious_vector = (uint32_t *)(APIC_BASE + SPURIOUS_INT_VECTOR_REG_OFFSET);
     spurious_vector[0] = 0x120;
     init_err();
+    init_aps();
 }

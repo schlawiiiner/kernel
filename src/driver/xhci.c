@@ -68,6 +68,15 @@ void __attribute__((optimize("O0"))) HCRST(uint64_t operational_register) {
    }
 }
 
+void __attribute__((optimize("O0"))) port_info(xHC* xhc, int n_ports) {
+   for (int i = 0; i < n_ports; i++) {
+      uint32_t portsc = ((uint32_t*)(xhc->operational_registers + 0x400 + 0x10*i))[0];
+      printbin(portsc);
+      printf("\n");
+   }
+   printf("\n");
+}
+
 void __attribute__((optimize("O0"))) init_device_context_array(uint64_t operational_registers, int n_slots) {
    uint64_t base_addr = kmalloc_phys_page(1, 0, 1, 1); // Allocates a 2 MiB page
    uint64_t* dcbaap = (uint64_t*)base_addr;
@@ -130,46 +139,77 @@ void __attribute__((optimize("O0"))) init_event_ring(uint64_t capability_registe
    
 }
 
-void __attribute__((optimize("O0"))) read_event_ring(uint64_t runtime_registers, int interrupter) {
+void port_status_change_event(TRB* psc, uint64_t operational_registers) {
+   int port = (psc->data_buffer_ptr_low >> 24) & 0xff;
+   uint32_t* portsc = (uint32_t*)(operational_registers + 0x400 + 0x10*port);
+   if ((portsc[0] >> 17) & 0b1) {
+      //CSC (conntect status change)
+      portsc[0] |= (1 << 17);
+   }
+}
+
+/*cannot handle event segment switches*/
+void __attribute__((optimize("O0"))) read_event_ring(uint64_t runtime_registers, uint64_t operational_registers, int interrupter) {
    uint64_t erdp = read_ERDP(runtime_registers, interrupter);
    TRB* trb = (TRB*)(erdp & ~0b1111);
-   switch ((trb->control >> 10) & 0b111111) {
-   case 32:
-      printf("Transfer Event\n");
-      break;
-   case 33:
-      printf("Command Completion Event\n");
-      break;
-   case 34:
-      printf("Port Status Change Event\n");
-      break;
-   case 35:
-      printf("Bandwidth Request Event\n");
-      break;
-   case 36:
-      printf("Doorbell Event\n");
-      break;
-   case 37:
-      printf("Host Controller Event\n");
-      break;
-   case 38:
-      printf("Device Notification Event\n");
-      break;
-   case 39:
-      printf("MFINDEX Wrap Event\n");
-      break;
-   default:
-      printf("ERROR: TRB type not allowed");
-      while(1);
-      break;
+   while (trb->control & 0b1) {
+      
+      switch ((trb->control >> 10) & 0b111111) {
+      case 32:
+         printf("Transfer Event\n");
+         break;
+      case 33:
+         printf("Command Completion Event\n");
+         break;
+      case 34:
+         printf("Port Status Change Event\n");
+         port_status_change_event(trb, operational_registers);
+         break;
+      case 35:
+         printf("Bandwidth Request Event\n");
+         break;
+      case 36:
+         printf("Doorbell Event\n");
+         break;
+      case 37:
+         printf("Host Controller Event\n");
+         break;
+      case 38:
+         printf("Device Notification Event\n");
+         break;
+      case 39:
+         printf("MFINDEX Wrap Event\n");
+         break;
+      default:
+         printf("ERROR: TRB type not allowed");
+         while(1);
+         break;
+      }
+      trb++;
    }
-   write_ERDP(runtime_registers, interrupter, erdp + sizeof(TRB));
+   
+   write_ERDP(runtime_registers, interrupter, (uint64_t)trb - sizeof(TRB));
+}
+
+void dump_event_ring(uint64_t runtime_registers, uint64_t operational_registers, int interrupter) {
+   uint64_t erdp = read_ERDP(runtime_registers, interrupter);
+   TRB* trb = (TRB*)(erdp & ~0b1111);
+   for (int i = 0; i < 10; i++) {
+      printhex(trb[i].data_buffer_ptr_low);
+      printf(" ");
+      printhex(trb[i].data_buffer_ptr_high);
+      printf(" ");
+      printhex(trb[i].status);
+      printf(" ");
+      printhex(trb[i].control);
+      printf("\n");
+   }
+   printf("\n");
 }
 
 
-
 void __attribute__((optimize("O0"))) interrupt_handler(uint64_t irq) {
-   int device_number = 25;
+   int device_number = irq-32;
    PCI_DEV xhci_device = device_list.devices[device_number];
    uint64_t capability_registers = xhci_device.bars[0].base_address;
    uint64_t operational_registers = capability_registers + read_CPLENGTH(capability_registers);
@@ -182,10 +222,12 @@ void __attribute__((optimize("O0"))) interrupt_handler(uint64_t irq) {
    for (int i = 0; i < max_interrupters; i++) {
       uint32_t iman = read_IMAN(runtime_registers, i);
       if (iman & (1 << 0)) {
-         read_event_ring(runtime_registers, i);
+         read_event_ring(runtime_registers, operational_registers, i);
          write_IMAN(runtime_registers, i, iman);
       }
    }
+
+   write_USBSTS(operational_registers, read_USBSTS(operational_registers));
    send_EOI();
 }
 
@@ -202,7 +244,8 @@ void __attribute__((optimize("O0"))) init_command_ring(xHC* xhc) {
    
 }
 
-void __attribute__((optimize("O0"))) place_no_op(xHC* xhc) {
+void __attribute__((optimize("O0"))) place_no_op(int device_number) {
+   xHC* xhc = (xHC*)device_list.devices[device_number].driver_config_space;
    TRB* trb = (TRB*)(xhc->cr_enqueue_ptr);
    trb->data_buffer_ptr_low, trb->data_buffer_ptr_high = 0,0;
    trb->status = 0;
@@ -218,14 +261,6 @@ void __attribute__((optimize("O0"))) init_transfer_ring(uint64_t operational_reg
 
 }
 
-void __attribute__((optimize("O0"))) port_info(xHC* xhc, int n_ports) {
-   for (int i = 0; i < n_ports; i++) {
-      uint32_t portsc = ((uint32_t*)(xhc->operational_registers + 0x400 + 0x10*i))[0];
-      printbin(portsc);
-      printf("\n");
-   }
-   printf("\n");
-}
 
 void init_driver_config_space(int device_number) {
    PCI_DEV* xhci_device = &(device_list.devices[device_number]);
@@ -239,12 +274,7 @@ void init_driver_config_space(int device_number) {
    driver_config_space->doorbell_array = driver_config_space->capability_registers + (read_DBOFF(driver_config_space->capability_registers) & ~(uint64_t)(0b11));
 }
 
-
 void __attribute__((optimize("O0"))) init_xhci_controller(int device_number) {
-   printf("device number: ");
-   printdec(device_number);
-   printf("\n");
-   //map_isr(45, (func_ptr_t)interrupt_handler);
    config_PCI(device_number);
    init_driver_config_space(device_number);
    xHC* xhc = (xHC*)(device_list.devices[device_number].driver_config_space);
@@ -292,5 +322,5 @@ void __attribute__((optimize("O0"))) init_xhci_controller(int device_number) {
 
 
    init_command_ring(xhc);
-   place_no_op(xhc);
+   place_no_op(device_number);
 }

@@ -45,6 +45,17 @@ check_cpuid:
     mov al, "1"
     jmp error
 
+check_MSR:
+    mov eax, 1
+    cpuid
+    bt edx, 5
+    jnc .no_msr
+    ret
+.no_msr:
+    mov al, "2"
+    jmp error
+
+
 check_long_mode:
     ; test if extended processor info in available
     mov eax, 0x80000000    ; implicit argument for cpuid
@@ -59,5 +70,5 @@ check_long_mode:
     jz .no_long_mode       ; If it's not set, there is no long mode
     ret
 .no_long_mode:
-    mov al, "2"
+    mov al, "3"
     jmp error

@@ -9,21 +9,25 @@ extern uint64_t p4_table[];
 extern uint64_t p3_table[];
 extern uint64_t p2_table[];
 extern uint64_t page_stack_bottom[];
-extern uint64_t page_stack_ptr[];
+extern uint64_t page_stack_ptr[];       //this is no pointer instead an index of page_stack_bottom
 
 //sysvar.asm
 extern MemoryInformation mi;
 
 #define PAGE_SIZE          (uint64_t)0x200000
-#define NPAGES                  (int)0x2000
-#define NP2_TABLES              (int)0x10
+#define NPAGES                  (int)0x40000
+#define NP2_TABLES              (int)0x200
 #define NP3_TABLES              (int)0x1
 
-#define P2_ENTRIES              (uint64_t)0x200
+#define P2_ENTRIES         (uint64_t)0x200
 
 uint64_t pop_page() {
     uint64_t addr = page_stack_bottom[(int)page_stack_ptr[0]];
     page_stack_ptr[0] = page_stack_ptr[0] - 1;
+    if (page_stack_ptr[0] == 0) {
+        printf("ERROR: out of memory");
+        while(1);
+    }
     return addr;
 }
 /*WARNING: This function does not check, if addr points to a valid page*/
@@ -102,10 +106,11 @@ int remove_page(uint64_t addr) {
     return 1;
 }
 
+/*size is a multiple of a page*/
 uint64_t vmalloc(int size) {
     int found = 0;
     uint64_t virt_addr;
-    for (int i = 0; i < 0x200*0x200; i++) {
+    for (int i = 0; i < NPAGES; i++) {
         if (!(p2_table[i] & 0x1)) {
             //found a non-present page
             found = 1;
@@ -119,18 +124,20 @@ uint64_t vmalloc(int size) {
                 }
             }
             if (found) {
-                virt_addr = (uint64_t)0x200000*i;
+                virt_addr = (uint64_t)PAGE_SIZE*i;
                 return virt_addr;
             }
         }
     }
-    printf("ERROR: vmalloc failed");
+    printf("ERROR: vmalloc failed to allocate ");
+    printdec(size);
+    printf(" continuous pages");
     while (1);
 }
 
 uint64_t kmalloc(int size, int read_write, int user_supervisor, int write_through, int cache_disable) {
     uint64_t base_addr = vmalloc(size);
-    int start_index = (int)(base_addr/0x200000);
+    int start_index = (int)(base_addr/PAGE_SIZE);
     for (int i = start_index; i < start_index + size; i++) {
         p2_table[i] = pop_page() | (cache_disable << 4) | (write_through << 3) | (user_supervisor << 2) | (read_write << 1) | 0x81;
     }
@@ -140,7 +147,7 @@ uint64_t kmalloc(int size, int read_write, int user_supervisor, int write_throug
 //this allocates a page (2MiB) and identity maps it and returns the physical address
 uint64_t kmalloc_phys_page(int read_write, int user_supervisor, int write_through, int cache_disable) {
     uint64_t addr = pop_page();
-    int index = addr/0x200000;
+    int index = addr/PAGE_SIZE;
     p2_table[index] = addr | (cache_disable << 4) | (write_through << 3) | (user_supervisor << 2) | (read_write << 1) | 0x81;
     asm volatile ("invlpg (%0)" ::"r" (addr) : "memory");
     return addr;
@@ -148,22 +155,22 @@ uint64_t kmalloc_phys_page(int read_write, int user_supervisor, int write_throug
 
 void kmfree(uint64_t base_addr, int size) {
     if (base_addr < mi.memory_size) {
-        int base_i = (int)(base_addr/0x200000);
+        int base_i = (int)(base_addr/PAGE_SIZE);
         uint64_t offset = 0x0;
         for (int i = base_i; i < base_i + size; i++) {
             push_page(p2_table[i] & 0x7ffffffff200000);
             p2_table[i] = 0x0;
             asm volatile ("invlpg (%0)" ::"r" (base_addr + offset) : "memory");
-            offset += 0x200000;
+            offset += PAGE_SIZE;
         }
     } else {
         //MMIO
-        int base_i = (int)(base_addr/0x200000);
+        int base_i = (int)(base_addr/PAGE_SIZE);
         uint64_t offset = 0x0;
         for (int i = base_i; i < base_i + size; i++) {
             p2_table[i] = 0x0;
             asm volatile ("invlpg (%0)" ::"r" (base_addr + offset) : "memory");
-            offset += 0x200000;
+            offset += PAGE_SIZE;
         }
     }
 }
@@ -257,13 +264,23 @@ void __attribute__((optimize("O0"))) memset(uint64_t base_addr, uint64_t value, 
     }
 }
 
+void memcopy(uint64_t* source, uint64_t* destination, int size) {
+    if (size % 8) {
+        printf("ERROR: size is not multiple of 8 byte");
+        while(1);
+    }
+    for (int i = 0; i < size/8; i++) {
+        destination[i] = source[i];
+    }
+}
+
 void dump_p2() {
-    for (int i = 0x400; i < 0x200*0x200; i++) {
+    for (int i = 0; i < NPAGES; i++) {
         if (p2_table[i] & 0x1) {
-            printhex((i*(uint64_t)0x200000));
-            printf(": ");
-            printhex(p2_table[i]);
-            printf("\n");
+            write_hex_to_serial((i*(uint64_t)0x200000));
+            write_string_to_serial(": ");
+            write_hex_to_serial(p2_table[i]);
+            write_string_to_serial("\n");
         }
     }
 }

@@ -2,6 +2,7 @@
 %define DATA_SEG     0x0010
 
 %include "src/boot/multiboot2.asm"
+%include "src/boot/mp.asm"
 global loader
 global IDT
 global irq_handlers
@@ -16,6 +17,7 @@ loader:
     mov dword [magic], eax
     call check_multiboot
     call check_cpuid
+    call check_MSR
     call check_long_mode
     call set_up_page_tables
     call enable_paging

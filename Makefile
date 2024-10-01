@@ -4,7 +4,7 @@ GCCFLAGS = -nostdlib -fno-builtin -fno-exceptions -ffreestanding -mno-red-zone -
 INCLUDES = -I$(PWD)
 
 objects = bin/loader.o bin/kernel.o bin/interrupts.o bin/graphics.o bin/font.o bin/serial_port.o bin/acpi.o bin/apic.o bin/ioapic.o bin/cpaging.o bin/pci.o bin/xhci.o bin/msi.o
-asm_files = src/boot/check.asm src/boot/interrupts.asm src/boot/loader.asm src/boot/multiboot2.asm src/boot/paging.asm src/boot/sysvar.asm src/boot/apic.asm src/boot/device.asm
+asm_files = src/boot/check.asm src/boot/interrupts.asm src/boot/loader.asm src/boot/multiboot2.asm src/boot/paging.asm src/boot/sysvar.asm src/boot/apic.asm src/boot/device.asm src/boot/mp.asm
 
 bin/kernel.o: src/kernel/kernel.c
 	@gcc $(GCCFLAGS) $(INCLUDES) -O2 -o $@ -c $<  
@@ -69,7 +69,7 @@ qemu:
 	@qemu-system-x86_64 \
 	-machine q35  \
 	-m 2G \
-	-smp cores=2 \
+	-smp cores=4 \
 	-device qemu-xhci \
 	-device usb-kbd \
 	-device usb-mouse \

@@ -1,5 +1,7 @@
 global enable_APIC
 global remap_APIC_registers
+global irq_probe
+global ioapic_list
 
 section .text
 enable_APIC:
@@ -40,3 +42,14 @@ remap_APIC_registers:
     pop rax
     pop rcx
     ret
+
+section .data
+irq_probe:
+    dq 1
+
+section .bss
+ioapic_list:
+    resd 8      ; number of I/O APICS
+    resd 8      ; number global system interrupts
+    resb 96     ; 96 global pins
+    resb 4*2    ; 4 IOAPICS supported (see struct IOAPIC ioapic.c)

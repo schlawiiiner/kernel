@@ -2,7 +2,7 @@ ENTRY(loader)
 
 SECTIONS
 {
-    . = 0x0100000;
+    . = 0x01000;
 
     .multiboot2 :
     {
@@ -14,10 +14,16 @@ SECTIONS
         *(.sysvar)
     }
 
+    .trampoline :
+    {
+        *(.trampoline)
+    }
+
     .text :
     {
         *(.text)
     }
+
 
     .rodata :
     {

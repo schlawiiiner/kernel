@@ -2,6 +2,7 @@
 #include "../../src/include/graphics.h"
 #include "../../src/include/apic.h"
 #include "../../src/include/interrupts.h"
+#include "../../src/include/ioapic.h"
 
 void irq_handler(uint64_t irq) {
     printdec(irq);
@@ -19,9 +20,10 @@ void irq_handler(uint64_t irq) {
 }
 
 void default_handler_func(uint64_t irq) {
-    printdec(irq);
+    printdec(irq-32);
     printf("\n");
-    return;
+    irq_probe = irq;
+    send_EOI();
 }
 
 void init_default_handler() {

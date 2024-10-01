@@ -198,4 +198,6 @@ static inline void write_ERDP(uint64_t runtime_registers, int interrupter, uint6
 }
 
 void init_xhci_controller(int device_number);
+void interrupt_handler(uint64_t irq);
+void place_no_op(int device_number);
 #endif

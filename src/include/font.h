@@ -29,6 +29,9 @@ extern char X_char[16];
 extern char Y_char[16];
 extern char Z_char[16];
 
+extern char opening_bracket_char[16];
+extern char closing_bracket_char[16];
+
 extern char a_char[16];
 extern char b_char[16];
 extern char c_char[16];
@@ -70,5 +73,10 @@ extern char nine_char[16];
 extern char colon_char[16];
 extern char semicolon_char[16];
 extern char point_char[16];
+extern char hyphen_char[16];
+extern char slash_char[16];
+extern char less_char[16];
+extern char equal_char[16];
+extern char question_mark_char[16];
 extern char* ascii_chars[128];
 #endif
