@@ -5,7 +5,6 @@ global trampoline_start
 global vacant
 global count
 
-extern no_op
 bits 16
 section .trampoline
 align 4096

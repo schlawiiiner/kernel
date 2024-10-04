@@ -1,7 +1,7 @@
 #include "../../src/include/font.h"
 #include "../../src/include/uint.h"
 #include "../../src/include/bootinfo.h"
-#include "../../src/include/cpaging.h"
+#include "../../src/include/mm/paging.h"
 #include "../../src/include/io.h"
 
 struct __attribute__((packed)) textmode {
@@ -69,7 +69,7 @@ void put_char(char character) {
 }
 
 
-void printf(char* string) {
+void print(char* string) {
     int i = 0;
     while (string[i] != '\0') {
         if (string[i] == '\n') {
@@ -81,6 +81,11 @@ void printf(char* string) {
                 tm.y_position++;
                 tm.x_position = 0;
             }
+        } else if (string[i] == '\t') {
+            put_char(' ');
+            put_char(' ');
+            put_char(' ');
+            put_char(' ');
         } else {
             put_char(string[i]);
         }
@@ -88,7 +93,7 @@ void printf(char* string) {
     }
 }
 void printhex(uint64_t integer) {
-    printf("0x");
+    print("0x");
     for (int i = 15; i >= 0; i--) {
         int val = (int)((integer >> i*4) & 0xf);
         if (val <= 9) {
@@ -122,7 +127,7 @@ void printdec(uint64_t integer) {
 }
 
 void printbin(uint64_t integer) {
-    printf("0b");
+    print("0b");
     for (int i = 63; i >= 0; i--) {
         put_char((char)(((integer >> i) & 0x1) + 48));
     }

@@ -32,7 +32,7 @@ typedef struct framebuffer framebuffer;
 void put_pixel(int x, int y, uint32_t color);
 void put_char(char character);
 void fill_screen(uint32_t color);
-void printf(char* string);
+void print(char* string);
 void printhex(uint64_t integer);
 void printdec(uint64_t integer);
 void printbin(uint64_t integer);

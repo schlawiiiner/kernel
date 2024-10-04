@@ -2,7 +2,7 @@
 #include "../../src/include/bootinfo.h"
 #include "../../src/include/graphics.h"
 #include "../../src/include/apic.h"
-#include "../../src/include/cpaging.h"
+#include "../../src/include/mm/paging.h"
 #include "../../src/include/ioapic.h"
 #include "../../src/include/interrupts.h"
 #include "../../src/include/io.h"
@@ -18,7 +18,7 @@ extern volatile uint8_t count[];
 
 void parse_MADT() {
     if (!(acpi.Flags & 0b001)) {
-        printf("ERROR: No MADT table present");
+        print("ERROR: No MADT table present");
         while(1);
     }
     uint8_t* base = (uint8_t*)acpi.MADT;
@@ -57,7 +57,7 @@ void parse_MADT() {
             break;
         default:
             set_color(0xff0000, 0x000000);
-            printf("\nERROR: cannot parse MADT entry of type: ");
+            print("\nERROR: cannot parse MADT entry of type: ");
             printhex(base[offset]);
             while(1);
 
@@ -96,7 +96,7 @@ void  __attribute__((optimize("O0"))) send_IPI(int APIC_ID, int destination_shor
     int timeout = 0x100000;
     while (icr[0] & (1 << 12)) {
         if (timeout == 0) {
-            printf("ERROR: timeout while waiting to send IPI");
+            print("ERROR: timeout while waiting to send IPI");
             while(1);
         }
         timeout--;
@@ -114,7 +114,7 @@ void __attribute__((optimize("O0"))) apic_err() {
     textmode* tm = (textmode*)TEXTMODE;
     tm->x_position, tm->y_position = 0,0;
 
-    printf("\nAPIC ERROR\n\n");
+    print("\nAPIC ERROR\n\n");
 
     //Intel's manual says that error_status_reg bust first be written to befor reading it
     uint32_t* error_status_reg = (uint32_t*)(APIC_BASE + ERROR_STATUS_REG_OFFSET);
@@ -123,28 +123,28 @@ void __attribute__((optimize("O0"))) apic_err() {
 
     
     if (error_status & 1) {
-        printf("Send Checksum Error\n");
+        print("Send Checksum Error\n");
     }
     if (error_status & 2) {
-        printf("Receive Checksum Error\n");
+        print("Receive Checksum Error\n");
     }
     if (error_status & 4) {
-        printf("Send Accept Error\n");
+        print("Send Accept Error\n");
     }
     if (error_status & 8) {
-        printf("Receive Accept Error\n");
+        print("Receive Accept Error\n");
     }
     if (error_status & 16) {
-        printf("Redirectable IPI\n");
+        print("Redirectable IPI\n");
     }
     if (error_status & 32) {
-        printf("Send Illegal Vector\n");
+        print("Send Illegal Vector\n");
     }
     if (error_status & 64) {
-        printf("Receive Illegal Vector\n");
+        print("Receive Illegal Vector\n");
     }
     if (error_status & 128) {
-        printf("Illegal Register Address\n");
+        print("Illegal Register Address\n");
     }
     while(1);
 }
@@ -153,9 +153,9 @@ void __attribute__((optimize("O0"))) dump_apic_regs(void) {
     uint64_t base = (uint64_t)(APIC_BASE);
     for (int i = 0; i < 0x400; i+=0x10) {
         printhex(APIC_BASE + i);
-        printf(" : ");
+        print(" : ");
         printhex(((uint32_t*)(base+i))[0]);
-        printf("\n");
+        print("\n");
     }
 }
 
@@ -184,6 +184,9 @@ void __attribute__((optimize("O0"))) init_aps(void) {
     while(timeout != 0) {
         timeout--;
     }
+    //SIPI
+    send_IPI(0, 0b11, 0, 1, 0, 0b110, (uint8_t)((uint64_t)trampoline_start/0x1000));
+    print("\tAPs ready\n");
 }
 
 void init_APIC(void) {
@@ -193,9 +196,9 @@ void init_APIC(void) {
     uint32_t err_code = enable_APIC(); 
     if (err_code != 0x0) {
         if (err_code == 0x1) {
-            printf("no APIC");
+            print("no APIC");
         } else if (err_code == 0x2) {
-            printf("no MSR");
+            print("no MSR");
         }
         while (1);
     }

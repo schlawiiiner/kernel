@@ -2,12 +2,13 @@
 #include "../../src/include/bootinfo.h"
 #include "../../src/include/io.h"
 #include "../../src/include/graphics.h"
-#include "../../src/include/cpaging.h"
+#include "../../src/include/mm/paging.h"
 #include "../../src/include/apic.h"
 #include "../../src/include/ioapic.h"
 #include "../../src/include/pci.h"
 #include "../../src/include/xhci.h"
 #include "../../src/include/interrupts.h"
+#include "../../src/include/mm/allocator.h"
 
 void parse_boot_information(BootInformation* boot_information) {
     uint64_t base = (uint64_t) boot_information;
@@ -125,7 +126,7 @@ void load_drivers() {
 }
 
 
-void kernelmain(BootInformation* multiboot_structure, unsigned int magicnumber) {
+void __attribute__((optimize("O0"))) kernelmain(BootInformation* multiboot_structure, unsigned int magicnumber) {
     parse_boot_information(multiboot_structure);
     if ((bis.present_flags & (1 << 6)) >> 6) {
         init_mem(bis.memory_map);
@@ -140,11 +141,11 @@ void kernelmain(BootInformation* multiboot_structure, unsigned int magicnumber) 
         while(1);
     }
     if ((bis.present_flags & (1 << 2)) >> 2) {
-        printf("\nkernel was booted by: ");
-        printf((char *)(bis.boot_loader_name) + 8);
-        printf("\n");
+        print("\nkernel was booted by: ");
+        print((char *)(bis.boot_loader_name) + 8);
+        print("\n");
     } else {
-        printf("\nkernel was booted by: unknown bootloader\n");
+        print("\nkernel was booted by: unknown bootloader\n");
     }
     if ((bis.present_flags & (1 << 15)) >> 15) {
         check_XSDT_t_checksum(bis.ACPI_new_RSDP);
@@ -153,6 +154,7 @@ void kernelmain(BootInformation* multiboot_structure, unsigned int magicnumber) 
     }
     init_default_handler();
     init_APIC();
+    init_allocators();
     parse_MADT();
     init_IOAPIC();
     enumerate_devices();

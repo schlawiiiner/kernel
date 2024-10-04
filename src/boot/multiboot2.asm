@@ -1,3 +1,13 @@
+%if SCREEN_X
+%else
+    %define SCREEN_X        1920
+%endif
+%if SCREEN_Y
+%else
+    %define SCREEN_Y        1080
+%endif
+
+
 section .multiboot2
 header_start:
 align 8
@@ -11,7 +21,7 @@ align 8
     dw 5
     dw 0
     dd 20
-    dd 1920, 1080, 32
+    dd SCREEN_X, SCREEN_Y, 32
 
 align 8
     ; end-tag

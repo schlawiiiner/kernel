@@ -6,16 +6,16 @@ void __attribute__((optimize("O0"))) enable_MSIX(int device_number) {
     PCI_DEV* device = &(device_list.devices[device_number]);
     //check if the device supports MSIX
     if (!(device->msix_cap_offset)) {
-        printf("ERROR: device ");
+        print("ERROR: device ");
         printdec(device_number);
-        printf(" does not support MSIX");
+        print(" does not support MSIX");
         while(1);
     }
     
     uint32_t* msix_capability = (uint32_t*)((uint64_t)(device->PCI_Config_Space) + device->msix_cap_offset);
     int bir = (int)(msix_capability[1] & 0b11);
     if (!(device->bars[bir].present)) {
-        printf("ERROR: BAR used for MSIX vector table not present");
+        print("ERROR: BAR used for MSIX vector table not present");
         while(1);
     }
 
@@ -43,9 +43,9 @@ void __attribute__((optimize("O0"))) dump_MSI_capability(uint32_t* msi_capabilit
 void __attribute__((optimize("O0"))) enable_MSI(int device_number) {
     PCI_DEV* device = &(device_list.devices[device_number]);
     if (!(device->msi_cap_offset)) {
-        printf("ERROR: device ");
+        print("ERROR: device ");
         printdec(device_number);
-        printf(" does not support MSI");
+        print(" does not support MSI");
         while(1);
     }
     uint32_t* msi_capability = (uint32_t*)((uint64_t)(device->PCI_Config_Space) + device->msi_cap_offset);

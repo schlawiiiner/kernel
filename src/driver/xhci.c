@@ -2,7 +2,8 @@
 #include "../../src/include/pci.h"
 #include "../../src/include/xhci.h"
 #include "../../src/include/graphics.h"
-#include "../../src/include/cpaging.h"
+#include "../../src/include/mm/paging.h"
+#include "../../src/include/mm/utils.h"
 #include "../../src/include/io.h"
 #include "../../src/include/msi.h"
 #include "../../src/include/interrupts.h"
@@ -26,7 +27,7 @@ void __attribute__((optimize("O0"))) port_reset(uint64_t operational_registers, 
    while (portsc[0] & (1 << 4)) {
       timeout--;
       if (timeout == 0) {
-         printf("ERROR: Timeout during reset of port: ");
+         print("ERROR: Timeout during reset of port: ");
          printdec(port_number);
          while(1);
       }
@@ -51,7 +52,7 @@ int error(uint64_t operational_registers) {
 /*Host Controller Reset*/
 void __attribute__((optimize("O0"))) HCRST(uint64_t operational_register) {
    if (!(read_USBSTS(operational_register) & 0b1)) {
-      printf("ERROR: xHC is not halted before reset");
+      print("ERROR: xHC is not halted before reset");
       while(1);
    }
    uint32_t usbcmd = read_USBCMD(operational_register);
@@ -62,7 +63,7 @@ void __attribute__((optimize("O0"))) HCRST(uint64_t operational_register) {
    while (read_USBCMD(operational_register) & (1 << 1)) {
       timeout--;
       if (timeout == 0) {
-         printf("ERROR: Timeout during xHC reset");
+         print("ERROR: Timeout during xHC reset");
          while(1);
       }
    }
@@ -72,9 +73,9 @@ void __attribute__((optimize("O0"))) port_info(xHC* xhc, int n_ports) {
    for (int i = 0; i < n_ports; i++) {
       uint32_t portsc = ((uint32_t*)(xhc->operational_registers + 0x400 + 0x10*i))[0];
       printbin(portsc);
-      printf("\n");
+      print("\n");
    }
-   printf("\n");
+   print("\n");
 }
 
 void __attribute__((optimize("O0"))) init_device_context_array(uint64_t operational_registers, int n_slots) {
@@ -133,7 +134,7 @@ void __attribute__((optimize("O0"))) init_event_ring(uint64_t capability_registe
       write_IMAN(runtime_registers, i, iman);
    }
    if (error(operational_registers)) {
-      printf("ERROR: Event Ring Initialization");
+      print("ERROR: Event Ring Initialization");
       while(1);
    }
    
@@ -156,32 +157,32 @@ void __attribute__((optimize("O0"))) read_event_ring(uint64_t runtime_registers,
       
       switch ((trb->control >> 10) & 0b111111) {
       case 32:
-         printf("Transfer Event\n");
+         print("Transfer Event\n");
          break;
       case 33:
-         printf("Command Completion Event\n");
+         print("Command Completion Event\n");
          break;
       case 34:
-         printf("Port Status Change Event\n");
+         print("Port Status Change Event\n");
          port_status_change_event(trb, operational_registers);
          break;
       case 35:
-         printf("Bandwidth Request Event\n");
+         print("Bandwidth Request Event\n");
          break;
       case 36:
-         printf("Doorbell Event\n");
+         print("Doorbell Event\n");
          break;
       case 37:
-         printf("Host Controller Event\n");
+         print("Host Controller Event\n");
          break;
       case 38:
-         printf("Device Notification Event\n");
+         print("Device Notification Event\n");
          break;
       case 39:
-         printf("MFINDEX Wrap Event\n");
+         print("MFINDEX Wrap Event\n");
          break;
       default:
-         printf("ERROR: TRB type not allowed");
+         print("ERROR: TRB type not allowed");
          while(1);
          break;
       }
@@ -196,15 +197,15 @@ void dump_event_ring(uint64_t runtime_registers, uint64_t operational_registers,
    TRB* trb = (TRB*)(erdp & ~0b1111);
    for (int i = 0; i < 10; i++) {
       printhex(trb[i].data_buffer_ptr_low);
-      printf(" ");
+      print(" ");
       printhex(trb[i].data_buffer_ptr_high);
-      printf(" ");
+      print(" ");
       printhex(trb[i].status);
-      printf(" ");
+      print(" ");
       printhex(trb[i].control);
-      printf("\n");
+      print("\n");
    }
-   printf("\n");
+   print("\n");
 }
 
 
@@ -283,7 +284,7 @@ void __attribute__((optimize("O0"))) init_xhci_controller(int device_number) {
    int timeout = 0x100000;
    while(((read_USBSTS(xhc->operational_registers) >> 11) & 0b1)) {
       if (timeout == 0) {
-         printf("ERROR: Timout while waiting for xHC");
+         print("ERROR: Timout while waiting for xHC");
          while(1);
       }
       timeout--;

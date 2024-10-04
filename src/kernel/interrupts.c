@@ -10,18 +10,18 @@ void irq_handler(uint64_t irq) {
         apic_err();
     }
     if (irq == 0x23) {
-        printf("IPI");
+        print("IPI");
     } else if (irq == 0x24) {
-        printf(" IOAPIC\n");
+        print(" IOAPIC\n");
     } else {
-        printf(".");
+        print(".");
     }   
     send_EOI();
 }
 
 void default_handler_func(uint64_t irq) {
     printdec(irq-32);
-    printf("\n");
+    print("\n");
     irq_probe = irq;
     send_EOI();
 }
@@ -41,7 +41,7 @@ void kernel_panic(char* str, int error_code, uint64_t*rsp) {
     fill_screen(0x0000);
     textmode* tm = (textmode*)TEXTMODE;
     tm->x_position, tm->y_position = 0,0;
-    printf(str);
+    print(str);
     char *registers[19];
     registers[0]  = "\n R15   : ";
     registers[1]  = "\n R14   : ";
@@ -69,7 +69,7 @@ void kernel_panic(char* str, int error_code, uint64_t*rsp) {
                 i++;
             }
         }
-        printf(registers[i]);
+        print(registers[i]);
         printhex(rsp[j]);
         j++;
     }

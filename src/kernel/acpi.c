@@ -13,7 +13,7 @@ void check_checksum(ACPI_Table_Header* table) {
     }
     if ((sum % 0x100) != 0x00) {
         set_color(0xff0000, 0x000000);
-        printf("ERROR: checksum is not valid");
+        print("ERROR: checksum is not valid");
         while(1);
     }
 }
@@ -26,7 +26,7 @@ void check_XSDT_t_checksum(XSDP_t* table) {
     }
     if (sum != 0x00) {
         set_color(0xff0000, 0x000000);
-        printf("ERROR: XSDP_t checksum is not valid");
+        print("ERROR: XSDP_t checksum is not valid");
         while(1);
     }
     sum = 0;
@@ -35,7 +35,7 @@ void check_XSDT_t_checksum(XSDP_t* table) {
     }
     if (sum != 0x00) {
         set_color(0xff0000, 0x000000);
-        printf("ERROR: XSDP_t checksum is not valid");
+        print("ERROR: XSDP_t checksum is not valid");
         while(1);
     }
     
@@ -48,7 +48,7 @@ void check_XSDT_checksum(ACPI_Table_Header* XSDT) {
     }
     if (sum != 0x00) {
         set_color(0xff0000, 0x000000);
-        printf("ERROR: XSDT checksum is not valid");
+        print("ERROR: XSDT checksum is not valid");
         while(1);
     }
 }

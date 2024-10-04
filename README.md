@@ -7,7 +7,7 @@
     - [x] GDT
 - [ ] memory management
     - [x] page frame allocator
-    - [ ] memory allocator
+    - [x] memory allocator
 - [ ] interrupts
     - [x] IDT
     - [x] exception handling stubs

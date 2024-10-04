@@ -2,7 +2,7 @@
 #include "../../src/include/graphics.h"
 #include "../../src/include/pci.h"
 #include "../../src/include/apic.h"
-#include "../../src/include/cpaging.h"
+#include "../../src/include/mm/paging.h"
 #include "../../src/include/acpi.h"
 
 /*Returns the offset of the capability with ID id in the PCI configuration space, if not present returns zero as offset*/
@@ -31,7 +31,7 @@ uint16_t capability(PCIHeader* device, int id) {
 
 void dump_capability(PCIHeader* device) {
     if (device->Header_Type != 0) {
-        printf(" nan\n");
+        print(" nan\n");
         return;
     }
     if ((device->Status & (1 << 4)) >> 4) {
@@ -39,12 +39,12 @@ void dump_capability(PCIHeader* device) {
         uint16_t next_ptr = (cap[0] >> 8) & 0xff;
         while (next_ptr != 0) {
             printhex(cap[0] & 0xff);
-            printf(" ");
+            print(" ");
             cap = (uint32_t *)(next_ptr + (uint64_t)device);
             next_ptr = (cap[0] >> 8) & 0xff;
         }
     }
-    printf(" nan\n");
+    print(" nan\n");
 }
 
 void __attribute__((optimize("O0"))) map_32_BAR(uint32_t* bar_ptr, int bar_number, int device_number) {
@@ -162,7 +162,7 @@ void map_device(PCIHeaderType0* device, int device_number) {
             }
             default:
                 //ERROR
-                printf("ERROR: Invalid BAR");
+                print("ERROR: Invalid BAR");
                 while(1);
                 break;
             }
@@ -203,14 +203,14 @@ void add_device(MCFG_entry* entry, int bus, int slot, int func) {
 }
 
 void dump_device(int id) {
-    printf("-------------------------------------------\n");
-    printf("Vendor ID: ");
+    print("-------------------------------------------\n");
+    print("Vendor ID: ");
     printhex(device_list.devices[id].vendor);
-    printf("\nDevice ID: ");
+    print("\nDevice ID: ");
     printhex(device_list.devices[id].device);
-    printf("\nClass    : ");
+    print("\nClass    : ");
     printhex(device_list.devices[id].class);
-    printf("\n-------------------------------------------\n\n");
+    print("\n-------------------------------------------\n\n");
 }
 void dump_devices() {
     for (int i = 0; i < device_list.number_devices; i++) {
@@ -220,7 +220,7 @@ void dump_devices() {
 
 void enumerate_devices() {
     if (!(acpi.Flags & 0b010)) {
-        printf("ERROR: MCFG table not present");
+        print("ERROR: MCFG table not present");
         while(1);
     }
     device_list.number_devices = 0;

@@ -1,5 +1,5 @@
 #include "../../src/include/uint.h"
-#include "../../src/include/cpaging.h"
+#include "../../src/include/mm/paging.h"
 #include "../../src/include/graphics.h"
 #include "../../src/include/bootinfo.h"
 #include "../../src/include/apic.h"
@@ -106,10 +106,10 @@ void route_hardware_interrupt(int irq, int gsi, func_ptr_t isr) {
             irq_handlers[irq] = isr;
             write_redirection_entry(ioapic_list.ioapics[i].IOAPICBase, gsi - base, irq, 0, 0, 0, 0, 0, 0);
             printbin(read_redirection_entry(ioapic_list.ioapics[i].IOAPICBase, gsi - base));
-            printf("\n");
+            print("\n");
             return;
         }
     }
-    printf("ERROR");
+    print("ERROR");
     while(1);
 }

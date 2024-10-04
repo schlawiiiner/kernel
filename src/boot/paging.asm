@@ -1,3 +1,9 @@
+%if MAX_RAMSIZE
+%else
+    %define MAX_RAMSIZE     0x400000000
+%endif
+%define PAGESIZE            0x200000
+
 bits 32
 
 global p4_table
@@ -64,7 +70,7 @@ p3_table:
 p2_table:
     resb 4096*512
 page_stack_bottom:
-    resb 4096*16
+    resb MAX_RAMSIZE/PAGESIZE*8
 page_stack_top:
 page_stack_ptr:
     resb 8
