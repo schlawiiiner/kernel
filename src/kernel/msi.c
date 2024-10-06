@@ -3,7 +3,7 @@
 #include "../../src/include/pci.h"
 
 void __attribute__((optimize("O0"))) enable_MSIX(int device_number) {
-    PCI_DEV* device = &(device_list.devices[device_number]);
+    volatile PCI_DEV* device = &(device_list.devices[device_number]);
     //check if the device supports MSIX
     if (!(device->msix_cap_offset)) {
         print("ERROR: device ");
@@ -41,7 +41,7 @@ void __attribute__((optimize("O0"))) dump_MSI_capability(uint32_t* msi_capabilit
 
 //TODO: handle 64 Bit vs 32 Bit addresses
 void __attribute__((optimize("O0"))) enable_MSI(int device_number) {
-    PCI_DEV* device = &(device_list.devices[device_number]);
+    volatile PCI_DEV* device = &(device_list.devices[device_number]);
     if (!(device->msi_cap_offset)) {
         print("ERROR: device ");
         printdec(device_number);

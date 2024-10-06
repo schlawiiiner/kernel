@@ -123,7 +123,7 @@ typedef struct __attribute__((packed)) ACPI {
   ACPI_Table_Header* FADT;
 } ACPI;
 
-extern ACPI acpi;
+extern volatile ACPI acpi;
 
 void check_XSDT_t_checksum(XSDP_t* table);
 void parse_XSDT(ACPI_Table_Header* XSDT);

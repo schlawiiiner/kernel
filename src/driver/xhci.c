@@ -264,7 +264,7 @@ void __attribute__((optimize("O0"))) init_transfer_ring(uint64_t operational_reg
 
 
 void init_driver_config_space(int device_number) {
-   PCI_DEV* xhci_device = &(device_list.devices[device_number]);
+   volatile PCI_DEV* xhci_device = &(device_list.devices[device_number]);
    uint64_t base_address = kmalloc(1, 1, 0, 0, 0);
    
    xhci_device->driver_config_space = base_address;

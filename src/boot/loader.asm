@@ -51,12 +51,10 @@ error:
     out dx, al
     hlt
 
-%include "src/boot/sysvar.asm"
 %include "src/boot/check.asm"
 %include "src/boot/paging.asm"
 %include "src/boot/interrupts.asm"
 %include "src/boot/apic.asm"
-%include "src/boot/device.asm"
 
 
 section .data
@@ -78,9 +76,11 @@ IDTP:
     dw 256*16-1
     dq IDT
 
+
 section .bss
+align 16
 stack_bottom:
-    resb 4096
+    resb 4096*8
 stack_top:
 IDT:
     resb 4096

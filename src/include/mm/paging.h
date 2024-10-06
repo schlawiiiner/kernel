@@ -23,8 +23,15 @@ typedef struct __attribute__((packed)) MemoryInformation {
     uint64_t memory_size;
 } MemoryInformation;
 
-//sysvar.asm
-extern MemoryInformation mi;
+#define HINT_BUFFER_SIZE    63
+typedef struct __attribute__((packed, aligned(64))) PageAllocatorHint {
+    int buffer[HINT_BUFFER_SIZE];
+    int index;
+} PageAllocatorHint;
+
+extern int fallback_index;
+
+extern PageAllocatorHint page_hint;
 
 void init_mem(MemoryMap* mmap);
 uint64_t kmalloc(int size, int read_write, int user_supervisor, int write_through, int cache_disable);
@@ -33,4 +40,5 @@ void kmfree(uint64_t base_addr, int size);
 uint64_t map_vmem_to_pmem(uint64_t base_addr, int size, int read_write, int user_supervisor, int write_through, int cache_disable);
 int identity_map(uint64_t base_addr, int size, int read_write, int user_supervisor, int write_through, int cache_disable);
 void io_map(uint64_t base_addr, int size, int read_write, int user_supervisor, int write_through, int cache_disable);
+
 #endif

@@ -3,30 +3,33 @@
 #include "../../src/include/bootinfo.h"
 #include "../../src/include/mm/paging.h"
 #include "../../src/include/io.h"
+#include "../../src/include/graphics.h"
 
-struct __attribute__((packed)) textmode {
-    uint64_t width;
-    uint64_t height;
-    uint64_t x_position;
-    uint64_t y_position;
-    uint64_t foreground;
-    uint64_t background;
-};
+volatile textmode tm;
+volatile framebuffer fb;
 
-typedef struct textmode textmode;
+void flush_cache_line(void *address) {
+    // Ensure that the address is aligned to the cache line size
+    // Typically, the cache line size is 64 bytes on modern CPUs
+    __asm__ volatile (
+        "clflush %0"
+        : // No output
+        : "m" (*(volatile uint64_t *)address) // Input: address to flush
+        : "memory" // Clobber memory
+    );
+}
 
-struct __attribute__((packed)) framebuffer {
-    uint32_t* address;
-    uint64_t pitch;
-    uint64_t width;
-    uint64_t height;
-};
+void set_lock() {
+    flush_cache_line((void*)&tm);
+    while (__sync_lock_test_and_set(&(tm.lock), 1));
+    asm volatile("mfence" ::: "memory");
+}
 
-typedef struct framebuffer framebuffer;
-
-//sysvar.asm
-extern framebuffer fb;
-extern textmode tm;
+void release_lock() {
+    asm volatile("mfence" ::: "memory");
+    flush_cache_line((void*)&tm);
+    __sync_lock_release(&tm.lock);
+}
 
 
 void put_pixel(int x, int y, uint32_t color) {
@@ -70,6 +73,7 @@ void put_char(char character) {
 
 
 void print(char* string) {
+    set_lock();
     int i = 0;
     while (string[i] != '\0') {
         if (string[i] == '\n') {
@@ -91,9 +95,12 @@ void print(char* string) {
         }
         i++;
     }
+    release_lock();
 }
 void printhex(uint64_t integer) {
-    print("0x");
+    set_lock();
+    put_char('0');
+    put_char('x');
     for (int i = 15; i >= 0; i--) {
         int val = (int)((integer >> i*4) & 0xf);
         if (val <= 9) {
@@ -102,11 +109,14 @@ void printhex(uint64_t integer) {
             put_char((char)(val + 87));
         }
     }
+    release_lock();
 }
 
 void printdec(uint64_t integer) {
+    set_lock();
     if (integer == 0) {
         put_char('0');  // Special case for zero
+        release_lock();
         return;
     }
 
@@ -124,13 +134,17 @@ void printdec(uint64_t integer) {
     for (int i = index - 1; i >= 0; i--) {
         put_char(buffer[i]);
     }
+    release_lock();
 }
 
 void printbin(uint64_t integer) {
-    print("0b");
+    set_lock();
+    put_char('0');
+    put_char('b');
     for (int i = 63; i >= 0; i--) {
         put_char((char)(((integer >> i) & 0x1) + 48));
     }
+    release_lock();
 }
 
 void set_color(uint32_t foreground, uint32_t background) {
@@ -151,6 +165,7 @@ void init_text_mode(FramebufferInfo* framebuffer_info) {
     tm.foreground = 0x00ff00;
     tm.background = 0x000000;
     fill_screen(0x000000);
+    tm.lock = 0;
 }
 
 void init_framebuffer(FramebufferInfo* framebuffer_info) {

@@ -7,8 +7,8 @@ NASMFLAGS = -felf64 -DMAX_RAMSIZE=$(MAX_RAMSIZE) -DSCREEN_X=$(SCREEN_X) -DSCREEN
 GCCFLAGS = -nostdlib -fno-builtin -fno-exceptions -ffreestanding -mno-red-zone -fno-leading-underscore -DMAX_RAMSIZE=$(MAX_RAMSIZE)
 INCLUDES = -I$(PWD)
 
-objects = bin/loader.o bin/kernel.o bin/interrupts.o bin/graphics.o bin/font.o bin/serial_port.o bin/acpi.o bin/apic.o bin/ioapic.o bin/paging.o bin/pci.o bin/xhci.o bin/msi.o bin/allocator.o bin/utils.o
-asm_files = src/boot/check.asm src/boot/interrupts.asm src/boot/loader.asm src/boot/multiboot2.asm src/boot/paging.asm src/boot/sysvar.asm src/boot/apic.asm src/boot/device.asm src/boot/mp.asm
+objects = bin/loader.o bin/kernel.o bin/interrupts.o bin/graphics.o bin/font.o bin/serial_port.o bin/acpi.o bin/apic.o bin/ioapic.o bin/paging.o bin/pci.o bin/xhci.o bin/msi.o bin/allocator.o bin/utils.o bin/thread.o
+asm_files = src/boot/check.asm src/boot/interrupts.asm src/boot/loader.asm src/boot/multiboot2.asm src/boot/paging.asm src/boot/apic.asm src/boot/mp.asm
 
 bin/kernel.o: src/kernel/kernel.c
 	@gcc $(GCCFLAGS) $(INCLUDES) -O2 -o $@ -c $<  
@@ -52,6 +52,9 @@ bin/allocator.o: src/mm/allocator.c
 bin/utils.o: src/mm/utils.c
 	@gcc $(GCCFLAGS) $(INCLUDES) -O3 -o $@ -c $<
 
+bin/thread.o: src/kernel/thread.c
+	@gcc $(GCCFLAGS) $(INCLUDES) -O3 -o $@ -c $<
+
 bin/loader.o: $(asm_files)
 	@nasm $(NASMFLAGS) src/boot/loader.asm -o $@ 
 
@@ -79,7 +82,7 @@ qemu:
 	@qemu-system-x86_64 \
 	-machine q35  \
 	-m 2G \
-	-smp cores=4 \
+	-smp cores=12 \
 	-device qemu-xhci \
 	-device usb-kbd \
 	-device usb-mouse \

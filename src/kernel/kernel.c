@@ -8,7 +8,10 @@
 #include "../../src/include/pci.h"
 #include "../../src/include/xhci.h"
 #include "../../src/include/interrupts.h"
+#include "../../src/include/thread.h"
 #include "../../src/include/mm/allocator.h"
+
+volatile BootInformationStructure bis;
 
 void parse_boot_information(BootInformation* boot_information) {
     uint64_t base = (uint64_t) boot_information;
@@ -124,6 +127,14 @@ void load_drivers() {
         }
     }
 }
+static inline uint64_t rdtsc(void) {
+    uint32_t lo, hi;
+    asm volatile (
+        "rdtsc"            // Read Time-Stamp Counter
+        : "=a"(lo), "=d"(hi) // Outputs to lo and hi
+    );
+    return ((uint64_t)hi << 32) | lo; // Combine hi and lo to get full 64-bit result
+}
 
 
 void __attribute__((optimize("O0"))) kernelmain(BootInformation* multiboot_structure, unsigned int magicnumber) {
@@ -154,10 +165,14 @@ void __attribute__((optimize("O0"))) kernelmain(BootInformation* multiboot_struc
     }
     init_default_handler();
     init_APIC();
-    init_allocators();
+    init_aps();
+
+    init_syscalls();
+    asm volatile ("int $0x50");
+    asm volatile ("hlt");
     parse_MADT();
     init_IOAPIC();
     enumerate_devices();
     //set_timer();
-    load_drivers();
+    //load_drivers();
 }

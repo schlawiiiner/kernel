@@ -5,6 +5,11 @@
 #include "../../src/include/bootinfo.h"
 #include "../../src/include/graphics.h"
 
+/*
+----------------------------------------------------------
+Registers
+----------------------------------------------------------
+*/
 #define APIC_BASE                       (uint64_t)0xfee00000
 #define LOCAL_APIC_ID_REG_OFFSET 0x20
 #define LOCAL_APIC_VERSION_REG_OFFSET 0x30
@@ -32,6 +37,59 @@
 #define INIT_COUNT_REG_OFFSET 0x380
 #define CURRENT_COUNT_REG_OFFSET 0x390
 #define DIVIDE_CONFIG_REG_OFFSET 0x3E0
+
+/*
+----------------------------------------------------
+Local Vector Table
+----------------------------------------------------
+*/
+
+#define LVT_MASK                        1 << 16
+
+#define LVT_ONE_SHOT                    0b00 << 17
+#define LVT_PERIODIC                    0b01 << 17
+#define LVT_TSC_DEADLINE                0b10 << 17
+
+#define LVT_EDGE_TRIGGERED              0b0 << 15
+#define LVT_LEVEL_TRIGGERED             0b1 << 15
+
+#define LVT_FIXED                       0b000 << 8
+#define LVT_SMI                         0b010 << 8
+#define LVT_NMI                         0b100 << 8
+#define LVT_EXT_INT                     0b111 << 8
+#define LVT_INIT                        0b101 << 8
+
+#define LVT_REMOTE_IRR                  0b1 << 14
+
+#define LVT_INTERRUPT_INPUT_PIN_POLARITY    0b1 << 13
+
+/*
+-----------------------------------------------------
+ICR Register
+-----------------------------------------------------
+*/
+#define ICR_FIXED                   0b000 << 8
+#define ICR_LOWEST_PRIORITY         0b001 << 8
+#define ICR_SMI                     0b010 << 8
+#define ICR_NMI                     0b100 << 8
+#define ICR_INIT                    0b101 << 8
+#define ICR_STARTUP                 0b110 << 8
+
+#define ICR_LOGICAL                 0b1 << 11
+#define ICR_PHYSICAL                0b0 << 11
+
+#define ICR_DEASSERT                0b0 << 14
+#define ICR_ASSERT                  0b1 << 14
+
+#define ICR_EDGE_TRIGGERD           0b0 << 15
+#define ICR_LEVEL_TRIGGERD          0b1 << 15
+
+#define ICR_NO_SCHORTHAND               0b00 << 18
+#define ICR_SELF                        0b01 << 18
+#define ICR_ALL_INCLUDING_SELF          0b10 << 18
+#define ICR_ALL_EXCLUDING_SELF          0b11 << 18
+
+#define ICR_SEND_PENDING                0b1 << 12
 
 void init_APIC(void);
 
@@ -88,4 +146,6 @@ void inline set_divide_configuration(uint8_t divide) {
 void set_timer();
 void apic_err();
 void parse_MADT();
+void send_IPI(int APIC_ID, int vector, int flags);
+void init_aps();
 #endif

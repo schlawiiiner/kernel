@@ -4,19 +4,18 @@
 #include "../../src/include/font.h"
 #include "../../src/include/bootinfo.h"
 
-#define TEXTMODE 0x100030
-#define FRAMEBUFFER 0x100060
+//#define TEXTMODE 0x100030
+//#define FRAMEBUFFER 0x100060
 
-struct __attribute__((packed)) textmode {
+typedef struct __attribute__((packed, aligned(64))) textmode {
     uint64_t width;
     uint64_t height;
     uint64_t x_position;
     uint64_t y_position;
     uint64_t foreground;
     uint64_t background;
-};
-
-typedef struct textmode textmode;
+    uint64_t lock;
+} textmode;
 
 struct __attribute__((packed)) framebuffer {
     uint32_t* address;

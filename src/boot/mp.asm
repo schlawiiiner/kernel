@@ -4,6 +4,8 @@
 global trampoline_start
 global vacant
 global count
+extern init_APIC
+extern printhex
 
 bits 16
 section .trampoline
@@ -60,17 +62,22 @@ LongMode:
     mov fs, ax
     mov gs, ax
     mov ss, ax
-    mov rsp, stack_top
-    mov rbp, stack_top
-    
+    mov rsp, StackTop
+    mov rbp, StackTop
     sti
+    call init_APIC
     mov cl, [count]
     add cl, 1
     mov byte [count], cl
     mov byte [vacant], 0
-    hlt
 .loop:
+    hlt
     jmp .loop
+
+vacant:
+    db 0
+count:
+    db 0
 
 gdtr:
     dw gdt_end - gdt_start - 1
@@ -94,11 +101,7 @@ gdt_data:
     db 0
 gdt_end:
 
-vacant:
-    db 0
-count:
-    db 0
-
+align 16
 StackBottom:
     resb 4096
 StackTop:

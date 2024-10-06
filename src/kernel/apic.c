@@ -81,7 +81,7 @@ void init_err() {
     error_reg[0] = error;
 }
 
-void  __attribute__((optimize("O0"))) send_IPI(int APIC_ID, int destination_shorthand, int trigger_mode, int level, int destination_mode, int delivery_mode, int vector) {
+void  __attribute__((optimize("O0"))) send_IPI(int APIC_ID, int vector, int flags) {
 
     
     uint32_t* icr = (uint32_t*)(APIC_BASE + ICR_HIGH_OFFSET);
@@ -104,15 +104,14 @@ void  __attribute__((optimize("O0"))) send_IPI(int APIC_ID, int destination_shor
 
     icr_read = icr[0];
     icr_read &= 0b11111111111100110011000000000000;
-    icr_read |= ((destination_shorthand & 0b11) << 18) | ((trigger_mode & 0b1) << 15) | ((level & 0b1) << 14) | ((destination_mode & 0b1) << 11) | ((delivery_mode & 0b111) << 8) | (vector & 0xff);
+    icr_read |= flags | (vector & 0xff);
     icr[0] = icr_read;   
 }
 
 void __attribute__((optimize("O0"))) apic_err() {
     set_color(0xff0000, 0x000000);
     fill_screen(0x0000);
-    textmode* tm = (textmode*)TEXTMODE;
-    tm->x_position, tm->y_position = 0,0;
+    set_cursor(0, 0);
 
     print("\nAPIC ERROR\n\n");
 
@@ -168,31 +167,37 @@ void set_timer() {
 }
 
 void __attribute__((optimize("O0"))) init_aps(void) {
-    
     vacant[0] = 0;
     count[0] = 1;
 
     //INIT IPI
-    send_IPI(0, 0b11, 0, 1, 0, 0b101, 0);
+    send_IPI(0,0, ICR_ALL_EXCLUDING_SELF|ICR_LEVEL_TRIGGERD|ICR_ASSERT|ICR_PHYSICAL|ICR_INIT);
     int timeout = 0x100000;
     while(timeout != 0) {
         timeout--;
     }
     //SIPI
-    send_IPI(0, 0b11, 0, 1, 0, 0b110, (uint8_t)((uint64_t)trampoline_start/0x1000));
+    send_IPI(0, (uint8_t)((uint64_t)trampoline_start/0x1000), ICR_ALL_EXCLUDING_SELF|ICR_EDGE_TRIGGERD|ICR_ASSERT|ICR_PHYSICAL|ICR_STARTUP);
     timeout = 0x200000;
     while(timeout != 0) {
         timeout--;
     }
     //SIPI
-    send_IPI(0, 0b11, 0, 1, 0, 0b110, (uint8_t)((uint64_t)trampoline_start/0x1000));
-    print("\tAPs ready\n");
+    send_IPI(0, (uint8_t)((uint64_t)trampoline_start/0x1000), ICR_ALL_EXCLUDING_SELF|ICR_EDGE_TRIGGERD|ICR_ASSERT|ICR_PHYSICAL|ICR_STARTUP);
+    timeout = 0x200000;
+    while(timeout != 0) {
+        timeout--;
+    }
+    while(__atomic_load_n(vacant, __ATOMIC_ACQUIRE));
+    print("all APs ready\n\n");
+    return;
 }
 
 void init_APIC(void) {
     if (identity_map(APIC_BASE, 1, 1, 0, 0, 0)) {
         /*catch error*/
     }
+    
     uint32_t err_code = enable_APIC(); 
     if (err_code != 0x0) {
         if (err_code == 0x1) {
@@ -203,8 +208,11 @@ void init_APIC(void) {
         while (1);
     }
     remap_APIC_registers((uint32_t)APIC_BASE);
+    print("initializing processor: ");
+    uint32_t* id = (uint32_t*)(APIC_BASE+LOCAL_APIC_ID_REG_OFFSET);
+    printdec((uint64_t)(id[0] >> 24));
+    print("\n");
     uint32_t *spurious_vector = (uint32_t *)(APIC_BASE + SPURIOUS_INT_VECTOR_REG_OFFSET);
     spurious_vector[0] = 0x120;
     init_err();
-    init_aps();
 }

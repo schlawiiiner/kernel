@@ -9,18 +9,9 @@ SECTIONS
         *(.multiboot2)
     }
 
-    .sysvar :
-    {
-        *(.sysvar)
-    }
-
-    .trampoline :
-    {
-        *(.trampoline)
-    }
-
     .text :
     {
+        *(.trampoline)
         *(.text)
     }
 

@@ -77,6 +77,4 @@ typedef struct __attribute__((packed)) BootInformationStructure {
     uint64_t image_load_base_physical_address;
 } BootInformationStructure;
 
-extern BootInformationStructure bis;
-
 #endif

@@ -2,13 +2,12 @@
 #include "../../src/include/io.h"
 #include "../../src/include/bootinfo.h"
 #include "../../src/include/mm/paging.h"
+#include "../../src/include/mm/allocator.h"
 
-#define PAGE_SIZE          (uint64_t)0x200000
-#define NPAGES                  (int)0x40000
-#define NP2_TABLES              (int)0x200
-#define NP3_TABLES              (int)0x1
+int fallback_index;
+PageAllocatorHint page_hint;
 
-#define P2_ENTRIES         (uint64_t)0x200
+volatile MemoryInformation mi;
 
 uint64_t pop_page() {
     uint64_t addr = page_stack_bottom[(int)page_stack_ptr[0]];
@@ -24,6 +23,44 @@ void push_page(uint64_t addr) {
     page_stack_ptr[0] = page_stack_ptr[0] + 1;
     page_stack_bottom[(int)page_stack_ptr[0]] = addr;
 }
+
+// 0 indicates fail
+int push_hint(int hint) {
+    if (page_hint.index == HINT_BUFFER_SIZE) {
+        //buffer is full
+        return 0;
+    }
+    page_hint.buffer[page_hint.index] = hint;
+    page_hint.index++;
+    return 1;
+}
+
+// 0 indicates fail
+int pop_hint() {
+    if (page_hint.index == 0) {
+        //buffer is empty
+        return 0;
+    }
+    page_hint.index--;
+    return page_hint.buffer[page_hint.index];
+}
+
+void init_page_hint() {
+    page_hint.index = 0;
+    int i = 0;
+    while(1) {
+        if (!(p2_table[i] & 0x1)) {
+            if (!push_hint(i)) {
+                fallback_index = i;
+                break;
+            }
+            // page table entry gets marked as present
+            p2_table[i] = 0x1;
+        }
+        i++;
+    }
+}
+
 void init_page_stack(MemoryMap* mmap) {
     page_stack_ptr[0] = 0x0;
 
@@ -82,6 +119,8 @@ void init_page_table() {
 void init_mem(MemoryMap* mmap) {
     init_page_stack(mmap);
     init_page_table();
+    init_page_hint();
+    init_allocators();
 }
 
 int remove_page(uint64_t addr) {
@@ -99,8 +138,9 @@ int remove_page(uint64_t addr) {
 uint64_t vmalloc(int size) {
     int found = 0;
     uint64_t virt_addr;
-    for (int i = 0; i < NPAGES; i++) {
+    for (int i = fallback_index; i < NPAGES; i++) {
         if (!(p2_table[i] & 0x1)) {
+            fallback_index = i;
             //found a non-present page
             found = 1;
             for (int j = 0; j < size; j++) {
@@ -124,6 +164,29 @@ uint64_t vmalloc(int size) {
     while (1);
 }
 
+uint64_t fast_kmalloc(int read_write, int user_supervisor, int write_through, int cache_disable) {
+    int hint = pop_hint();
+    if (hint) {
+        p2_table[hint] = pop_page() | (cache_disable << 4) | (write_through << 3) | (user_supervisor << 2) | (read_write << 1) | 0x81;
+        return PAGE_SIZE*hint;
+    }
+    // fallback
+    uint64_t addr = vmalloc(1);
+    p2_table[addr/PAGE_SIZE] = pop_page() | (cache_disable << 4) | (write_through << 3) | (user_supervisor << 2) | (read_write << 1) | 0x81;
+    return addr;
+}
+
+void fast_kmfree(uint64_t base_addr) {
+    int hint = base_addr/PAGE_SIZE;
+    if (push_hint(hint)) {
+        push_page(p2_table[hint] & 0x7ffffffff200000);
+        asm volatile ("invlpg (%0)" ::"r" (base_addr) : "memory");
+    } else {
+        //fallback
+        kmfree(base_addr, 1);
+    }
+}
+
 uint64_t kmalloc(int size, int read_write, int user_supervisor, int write_through, int cache_disable) {
     uint64_t base_addr = vmalloc(size);
     int start_index = (int)(base_addr/PAGE_SIZE);
@@ -143,24 +206,19 @@ uint64_t kmalloc_phys_page(int read_write, int user_supervisor, int write_throug
 }
 
 void kmfree(uint64_t base_addr, int size) {
-    if (base_addr < mi.memory_size) {
-        int base_i = (int)(base_addr/PAGE_SIZE);
-        uint64_t offset = 0x0;
-        for (int i = base_i; i < base_i + size; i++) {
+    int base_i = (int)(base_addr/PAGE_SIZE);
+    uint64_t offset = 0x0;
+    for (int i = base_i; i < base_i + size; i++) {
+        uint64_t physical_page = p2_table[i] & 0x7ffffffff200000;
+        if (physical_page < mi.memory_size) {
             push_page(p2_table[i] & 0x7ffffffff200000);
-            p2_table[i] = 0x0;
-            asm volatile ("invlpg (%0)" ::"r" (base_addr + offset) : "memory");
-            offset += PAGE_SIZE;
         }
-    } else {
-        //MMIO
-        int base_i = (int)(base_addr/PAGE_SIZE);
-        uint64_t offset = 0x0;
-        for (int i = base_i; i < base_i + size; i++) {
-            p2_table[i] = 0x0;
-            asm volatile ("invlpg (%0)" ::"r" (base_addr + offset) : "memory");
-            offset += PAGE_SIZE;
+        p2_table[i] = 0x0;
+        if (i < fallback_index) {
+            fallback_index = i;
         }
+        asm volatile ("invlpg (%0)" ::"r" (base_addr + offset) : "memory");
+        offset += PAGE_SIZE;
     }
 }
 

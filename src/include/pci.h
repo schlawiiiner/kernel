@@ -173,7 +173,7 @@ typedef struct __attribute__((packed)) PCI_DEV_List {
     PCI_DEV devices[100];
 } PCI_DEV_List;
 
-extern PCI_DEV_List device_list;
+extern volatile PCI_DEV_List device_list;
 
 void enumerate_devices();
 #endif
