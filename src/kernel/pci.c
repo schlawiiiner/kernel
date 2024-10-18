@@ -5,7 +5,7 @@
 #include "../../src/include/mm/paging.h"
 #include "../../src/include/acpi.h"
 
-volatile PCI_DEV_List device_list;
+volatile PCI_DEV_List device_list __attribute__((section(".sysvar")));
 /*Returns the offset of the capability with ID id in the PCI configuration space, if not present returns zero as offset*/
 uint16_t capability(PCIHeader* device, int id) {
     //check if capability list is implemented

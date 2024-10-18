@@ -27,6 +27,13 @@ void parse_MADT() {
         switch (base[offset]){
         case 0:
             MADT_processor_local_APIC* entry0 = (MADT_processor_local_APIC*)(base+offset);
+            print("Processor ");
+            printdec(entry0->APIC_ID);
+            if (entry0->Flags & 0b11) {
+                print(": online capable\n");
+            } else {
+                print(": not online capable\n");
+            }
             offset+= entry0->Length;
             break;
         case 1:

@@ -4,9 +4,6 @@
 #include "../../src/include/font.h"
 #include "../../src/include/bootinfo.h"
 
-//#define TEXTMODE 0x100030
-//#define FRAMEBUFFER 0x100060
-
 typedef struct __attribute__((packed, aligned(64))) textmode {
     uint64_t width;
     uint64_t height;

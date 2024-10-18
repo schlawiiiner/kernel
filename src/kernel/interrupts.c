@@ -3,6 +3,7 @@
 #include "../../src/include/apic.h"
 #include "../../src/include/interrupts.h"
 #include "../../src/include/ioapic.h"
+#include "../../src/include/io.h"
 
 void irq_handler(uint64_t irq) {
     printdec(irq);
@@ -20,8 +21,6 @@ void irq_handler(uint64_t irq) {
 }
 
 void default_handler_func(uint64_t irq) {
-    printdec(irq-32);
-    print("\n");
     irq_probe = irq;
     send_EOI();
 }
@@ -37,11 +36,7 @@ void map_isr(uint8_t irq, func_ptr_t function) {
 }
 
 void kernel_panic(char* str, int error_code, uint64_t*rsp) {
-    set_color(0xff0000, 0x000000);
-    fill_screen(0x0000);
-    set_cursor(0, 0);
-    print("\n ------ KERNEL PANIC ------\n");
-    print(str);
+    
     char *registers[19];
     registers[0]  = "\n R15   : ";
     registers[1]  = "\n R14   : ";
@@ -62,7 +57,27 @@ void kernel_panic(char* str, int error_code, uint64_t*rsp) {
     registers[16] = "\n RIP   : ";
     registers[17] = "\n CS    : ";
     registers[18] = "\n EFLAGS: ";
+
+    write_string_to_serial("\n ------ KERNEL PANIC ------\n");
+    write_string_to_serial(str);
     int j = 0;
+    for (int i = 0; i < 19; i++){
+        if (i == 15){
+            if (0 == error_code) {
+                i++;
+            }
+        }
+        write_string_to_serial(registers[i]);
+        write_hex_to_serial(rsp[j]);
+        j++;
+    }
+
+    set_color(0xff0000, 0x000000);
+    fill_screen(0x0000);
+    set_cursor(0, 0);
+    print("\n ------ KERNEL PANIC ------\n");
+    print(str);
+    j = 0;
     for (int i = 0; i < 19; i++){
         if (i == 15){
             if (0 == error_code) {

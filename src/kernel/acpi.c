@@ -5,7 +5,7 @@
 
 #define ACPI_XSDT_ENTRY_OFFSET 36
 
-volatile ACPI acpi;
+volatile ACPI acpi __attribute__((section(".sysvar")));
 
 void check_checksum(ACPI_Table_Header* table) {
     uint8_t* ptr = (uint8_t*)table;

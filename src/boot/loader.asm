@@ -1,15 +1,21 @@
-%define CODE_SEG     0x0008
-%define DATA_SEG     0x0010
+%define KERNEL_CODE_SEG     0x0008
+%define KERNEL_DATA_SEG     0x0010
+
+%define USER_CODE_SEG       0x0018
+%define USER_DATA_SEG       0x0020
 
 %include "src/boot/multiboot2.asm"
 %include "src/boot/mp.asm"
 global loader
 global IDT
+global GDT
+global TSS
 global irq_handlers
 extern kernelmain
+extern printhex
 bits 32
 
-section .text
+section .boot
 loader:
     mov esp, stack_top
     mov ebp, stack_top
@@ -22,11 +28,11 @@ loader:
     call set_up_page_tables
     call enable_paging
     lgdt [GDT.Pointer]
-    jmp CODE_SEG:longmode 
+    jmp KERNEL_CODE_SEG:longmode 
 
 bits 64
 longmode:
-    mov ax, DATA_SEG
+    mov ax, KERNEL_DATA_SEG
     mov ds, ax
     mov es, ax
     mov fs, ax
@@ -39,11 +45,10 @@ interrupts_enabled:
     xor rsi, rsi
     mov edi, [boot_info]
     mov esi, [magic]
-    call kernelmain
-loop:
-    hlt
-    jmp loop
+    mov rax, kernelmain
+    call rax
 
+section .boot
 ; Prints the error code to the serial port
 bits 32
 error:
@@ -55,26 +60,40 @@ error:
 %include "src/boot/paging.asm"
 %include "src/boot/interrupts.asm"
 %include "src/boot/apic.asm"
+%include "src/boot/user.asm"
 
 
 section .data
 GDT:
 .Null:
     dq 0x0000000000000000             ; Null Descriptor - should be present.
- 
-.Code:
-    dq 0x00209A0000000000             ; 64-bit code descriptor (exec/read).
-    dq 0x0000920000000000             ; 64-bit data descriptor (read/write).
- 
+.KernelCode:
+    dq 0x00209A0000000000             ; 64-bit ring 0 code descriptor (exec/read).
+.KernelData:
+    dq 0x0000920000000000             ; 64-bit ring 0 data descriptor (read/write).
+.UserCode:
+    dq 0x0020FA0000000000             ; 64-bit ring 3 code descriptor (exec/read)
+.UserData:
+    dq 0x0000F20000000000             ; 64-bit ring 3 data descriptor (read/write).
+.TSS:
+    dq 0x0000000000000000
+    dq 0x0000000000000000
 align 4
     dw 0                              ; Padding to make the "address of the GDT" field aligned on a 4-byte boundary
  
 .Pointer:
     dw $ - GDT - 1                    ; 16-bit Size (Limit) of GDT.
-    dd GDT                            ; 32-bit Base Address of GDT. (CPU will zero extend to 64-bit)
+    dq GDT                            ; 64-bit Base Address of GDT
 IDTP:
     dw 256*16-1
     dq IDT
+
+TSS:
+    dd 0
+    dq ring0_stack_bottom
+    dq 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    dd 0
+
 
 
 section .bss
@@ -82,6 +101,9 @@ align 16
 stack_bottom:
     resb 4096*8
 stack_top:
+ring0_stack_bottom:
+    resb 4096
+ring0_stack_top:
 IDT:
     resb 4096
 

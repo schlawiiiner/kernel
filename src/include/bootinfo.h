@@ -20,6 +20,31 @@ typedef struct __attribute__((packed)) BasicMemoryInformation {
     uint32_t mem_upper;
 } BasicMemoryInformation;
 
+typedef struct __attribute__((packed, aligned(8))) ELFSectionHeader {
+    uint32_t name_offset;
+    uint32_t type;
+    uint64_t flags;
+    uint64_t address;
+    uint64_t offset;
+    uint64_t size;
+    uint32_t link;
+    uint32_t info;
+    uint64_t addralign;
+    uint64_t entsize;
+} ELFSectionHeader;
+
+/*CAUTION: The GRUB2 multiboot2 spec is wrong (as of oct 2024) this is the right tag*/
+typedef struct __attribute__((packed, aligned(8))) ELFSymbols {
+    uint32_t type;
+    uint32_t size;
+    uint32_t num;
+    uint32_t entsize;
+    uint16_t shndx;
+    uint16_t reserved;
+    ELFSectionHeader sections[];
+} ELFSymbols;
+
+
 typedef struct __attribute__((packed)) FramebufferInfo {
     uint32_t type;
     uint32_t size;
@@ -62,7 +87,7 @@ typedef struct __attribute__((packed)) BootInformationStructure {
     MemoryMap* memory_map;
     uint64_t VBE_info;
     FramebufferInfo* framebuffer_info;
-    uint64_t ELF_symbols;
+    ELFSymbols* ELF_symbols;
     uint64_t APM_table;
     uint64_t EFI_32bit_system_table_pointer;
     uint64_t EFI_64bit_system_table_pointer;
@@ -77,4 +102,5 @@ typedef struct __attribute__((packed)) BootInformationStructure {
     uint64_t image_load_base_physical_address;
 } BootInformationStructure;
 
+extern volatile BootInformationStructure bis;
 #endif

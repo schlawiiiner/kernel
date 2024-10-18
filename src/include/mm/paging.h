@@ -2,6 +2,7 @@
 #define PAGING_H
 #include "../../../src/include/uint.h"
 #include "../../../src/include/bootinfo.h"
+#include "../../../src/include/mm/memory.h"
 
 
 #define PAGE_SIZE          (uint64_t)0x200000
@@ -15,13 +16,7 @@
 extern uint64_t p4_table[];
 extern uint64_t p3_table[];
 extern uint64_t p2_table[];
-extern uint64_t page_stack_bottom[];
-extern uint64_t page_stack_ptr[];       //this is no pointer instead an index of page_stack_bottom
 
-
-typedef struct __attribute__((packed)) MemoryInformation {
-    uint64_t memory_size;
-} MemoryInformation;
 
 #define HINT_BUFFER_SIZE    63
 typedef struct __attribute__((packed, aligned(64))) PageAllocatorHint {
@@ -33,7 +28,7 @@ extern int fallback_index;
 
 extern PageAllocatorHint page_hint;
 
-void init_mem(MemoryMap* mmap);
+void init_mem(MemoryMap* mmap, ELFSymbols* elf_symbols);
 uint64_t kmalloc(int size, int read_write, int user_supervisor, int write_through, int cache_disable);
 uint64_t kmalloc_phys_page(int read_write, int user_supervisor, int write_through, int cache_disable);
 void kmfree(uint64_t base_addr, int size);

@@ -306,7 +306,6 @@ void __attribute__((optimize("O0"))) init_xhci_controller(int device_number) {
    // 1. Program the Device Context Base Address Array Pointer (DCBAAP)
    init_device_context_array(xhc->operational_registers, n_slots);
    
-   //enable_MSI(device_number);
    // 2. Program the Event Ring
    init_event_ring(xhc->capability_registers, xhc->operational_registers,xhc->runtime_registers);
    

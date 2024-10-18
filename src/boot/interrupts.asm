@@ -61,7 +61,7 @@ extern fpu_error_interrupt
     pop rax
 %endmacro
 
-section .text
+section .interrupts
 int0:
     cli
     cld
@@ -77,7 +77,7 @@ int1:
     mov rdi, rsp
     call debug
     POP_ALL_REGS
-    iret
+    iretq
 int2:
     cli
     cld
@@ -85,7 +85,7 @@ int2:
     mov rdi, rsp
     call non_maskable_interrupt
     POP_ALL_REGS
-    iret
+    iretq
 int3:
     cli
     cld
@@ -93,7 +93,7 @@ int3:
     mov rdi, rsp
     call breakpoint
     POP_ALL_REGS
-    iret
+    iretq
 int4:
     cli
     cld
@@ -101,7 +101,7 @@ int4:
     mov rdi, rsp
     call overflow
     POP_ALL_REGS
-    iret
+    iretq
 int5:
     cli
     cld
@@ -109,7 +109,7 @@ int5:
     mov rdi, rsp
     call bound_range_exceeded
     POP_ALL_REGS
-    iret
+    iretq
 int6:
     cli
     cld
@@ -117,7 +117,7 @@ int6:
     mov rdi, rsp
     call invalid_opcode
     POP_ALL_REGS
-    iret
+    iretq
 int7:
     cli
     cld
@@ -125,7 +125,7 @@ int7:
     mov rdi, rsp
     call device_not_available
     POP_ALL_REGS
-    iret
+    iretq
 int8:
     cli
     cld
@@ -133,7 +133,7 @@ int8:
     mov rdi, rsp
     call double_fault
     POP_ALL_REGS
-    iret
+    iretq
 int9:
     cli
     cld
@@ -141,7 +141,7 @@ int9:
     mov rdi, rsp
     call coprocessor_segment_overrun
     POP_ALL_REGS
-    iret
+    iretq
 int10:
     cli
     cld
@@ -149,7 +149,7 @@ int10:
     mov rdi, rsp
     call invalid_tss
     POP_ALL_REGS
-    iret
+    iretq
 int11:
     cli
     cld
@@ -157,7 +157,7 @@ int11:
     mov rdi, rsp
     call segment_not_present
     POP_ALL_REGS
-    iret
+    iretq
 int12:
     cli
     cld
@@ -165,7 +165,7 @@ int12:
     mov rdi, rsp
     call stack_segment_fault
     POP_ALL_REGS
-    iret
+    iretq
 int13:
     cli
     cld
@@ -173,7 +173,7 @@ int13:
     mov rdi, rsp
     call general_protection_fault
     POP_ALL_REGS
-    iret
+    iretq
 int14:
     cli
     cld
@@ -181,7 +181,7 @@ int14:
     mov rdi, rsp
     call page_fault
     POP_ALL_REGS
-    iret
+    iretq
 int15:
     cli
 	cld
@@ -190,7 +190,7 @@ int15:
 	mov rax, [irq_handlers+120]
 	call rax
 	POP_ALL_REGS
-	iretq
+	iretqq
 int16:
     cli
     cld
@@ -198,7 +198,7 @@ int16:
     mov rdi, rsp
     call x87_floating_point_exception
     POP_ALL_REGS
-    iret
+    iretq
 int17:
     cli
     cld
@@ -206,7 +206,7 @@ int17:
     mov rdi, rsp
     call alignment_check
     POP_ALL_REGS
-    iret
+    iretq
 int18:
     cli
     cld
@@ -214,7 +214,7 @@ int18:
     mov rdi, rsp
     call machine_check
     POP_ALL_REGS
-    iret
+    iretq
 int19:
     cli
     cld
@@ -222,7 +222,7 @@ int19:
     mov rdi, rsp
     call simd_floating_point_exception
     POP_ALL_REGS
-    iret
+    iretq
 int20:
     cli
     cld
@@ -230,7 +230,7 @@ int20:
     mov rdi, rsp
     call virtualization_exception
     POP_ALL_REGS
-    iret
+    iretq
 int21:
     cli
     cld
@@ -238,7 +238,7 @@ int21:
     mov rdi, rsp
     call control_protection_exception
     POP_ALL_REGS
-    iret
+    iretq
 int22:
     cli
 	cld
@@ -308,7 +308,7 @@ int29:
     mov rdi, rsp
     call vmm_communication_exception
     POP_ALL_REGS
-    iret
+    iretq
 int30:
     cli
     cld
@@ -316,7 +316,7 @@ int30:
     mov rdi, rsp
     call security_exception
     POP_ALL_REGS
-    iret
+    iretq
 int31:
     cli
 	cld
@@ -2345,7 +2345,7 @@ int255:
 	POP_ALL_REGS
 	iretq
 
-
+section .boot
 exception_halt_main:
     cli
     hlt
@@ -2356,10 +2356,10 @@ exception_halt_main:
 make_entry:
     mov rdx, IDT
     add rdx, rcx
-    mov word [rdx], ax
-    mov word [rdx+2], CODE_SEG
-    mov byte [rdx+4], 0x0
-    mov byte [rdx+5], 0x8f
+    mov word [rdx], ax				; offset [0 ... 15]
+    mov word [rdx+2], CODE_SEG		; segment selector
+    mov byte [rdx+4], 0x0			; IST (no interrupt stack table is beeing used)
+    mov byte [rdx+5], 0xEF			; gate type, DPL, present (Trap gate, Ring 3, present) 
     shr rax, 16
     mov word [rdx+6], ax
     shr rax, 16

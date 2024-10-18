@@ -1,6 +1,6 @@
 bits 32
 
-section .text
+section .boot
 check_multiboot:
     cmp eax, 0x36d76289
     jne .no_multiboot

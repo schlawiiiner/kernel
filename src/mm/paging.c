@@ -3,16 +3,19 @@
 #include "../../src/include/bootinfo.h"
 #include "../../src/include/mm/paging.h"
 #include "../../src/include/mm/allocator.h"
+#include "../../src/include/mm/utils.h"
 
 int fallback_index;
 PageAllocatorHint page_hint;
-
 volatile MemoryInformation mi;
 
+uint64_t page_stack[MAX_RAMSIZE/PAGE_SIZE*8] __attribute__((section(".sysvar")));
+int page_stack_ptr __attribute__((section(".sysvar")));
+
 uint64_t pop_page() {
-    uint64_t addr = page_stack_bottom[(int)page_stack_ptr[0]];
-    page_stack_ptr[0] = page_stack_ptr[0] - 1;
-    if (page_stack_ptr[0] == 0) {
+    uint64_t addr = page_stack[page_stack_ptr];
+    page_stack_ptr--;
+    if (page_stack_ptr == 0) {
         print("ERROR: out of memory");
         while(1);
     }
@@ -20,8 +23,8 @@ uint64_t pop_page() {
 }
 /*WARNING: This function does not check, if addr points to a valid page*/
 void push_page(uint64_t addr) {
-    page_stack_ptr[0] = page_stack_ptr[0] + 1;
-    page_stack_bottom[(int)page_stack_ptr[0]] = addr;
+    page_stack_ptr++;
+    page_stack[page_stack_ptr] = addr;
 }
 
 // 0 indicates fail
@@ -61,13 +64,12 @@ void init_page_hint() {
     }
 }
 
-void init_page_stack(MemoryMap* mmap) {
-    page_stack_ptr[0] = 0x0;
 
+void init_page_stack(MemoryMap* mmap) {
+    page_stack_ptr = 0;
     int n_entries = (int)((mmap->size - 16)/(mmap->entry_size));
     MemoryMapEntry* mmap_entry = (MemoryMapEntry*)((uint64_t)mmap + 16);
     mi.memory_size = mmap_entry[n_entries - 1].base_addr + mmap_entry[n_entries-1].length;
-
     for (int i = 0; i < n_entries; i++) {
         if (mmap_entry[i].type == 0x1) {
             //available memory
@@ -106,9 +108,9 @@ void init_page_stack(MemoryMap* mmap) {
     }
 }
 void init_page_table() {
-    p4_table[0] = (uint64_t)p3_table | 0x3;
+    p4_table[0] = (uint64_t)p3_table | 0x7;
     for (int i = 0; i < 0x200; i++) {
-        p3_table[i] = (uint64_t)(p2_table + i*0x200) | 0x3;
+        p3_table[i] = (uint64_t)(p2_table + i*0x200) | 0x7;
     }
     /*Flush the whole TLB*/
     uint64_t cr3;
@@ -116,7 +118,7 @@ void init_page_table() {
     asm volatile("mov %0, %%cr3" : : "r"(cr3));
 }
 
-void init_mem(MemoryMap* mmap) {
+void init_mem(MemoryMap* mmap, ELFSymbols* elf_symbols) {
     init_page_stack(mmap);
     init_page_table();
     init_page_hint();
@@ -124,10 +126,10 @@ void init_mem(MemoryMap* mmap) {
 }
 
 int remove_page(uint64_t addr) {
-    for (int i = 0; i <= page_stack_ptr[0]; i++) {
-        if (addr == page_stack_bottom[i]) {
-            page_stack_bottom[i] = page_stack_bottom[(int)page_stack_ptr[0]];
-            page_stack_ptr[0] = page_stack_ptr[0] - 1;
+    for (int i = 0; i <= page_stack_ptr; i++) {
+        if (addr == page_stack[i]) {
+            page_stack[i] = page_stack[page_stack_ptr];
+            page_stack_ptr--;
             return 0;
         }
     }

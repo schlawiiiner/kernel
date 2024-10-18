@@ -5,11 +5,11 @@ global trampoline_start
 global vacant
 global count
 extern init_APIC
-extern printhex
+extern halt
 
 bits 16
 section .trampoline
-align 4096
+align 4096                      ; trampoline code must be 4KiB alligned
 trampoline_start:
     cli
 .wait:
@@ -25,7 +25,6 @@ trampoline_start:
     mov eax, cr0
     or eax, 1
     mov cr0, eax
-
     jmp CODE_SEG:ProtectedMode
 
 bits 32
@@ -65,14 +64,15 @@ LongMode:
     mov rsp, StackTop
     mov rbp, StackTop
     sti
-    call init_APIC
+    mov rax, init_APIC
+    call rax
     mov cl, [count]
     add cl, 1
     mov byte [count], cl
     mov byte [vacant], 0
-.loop:
-    hlt
-    jmp .loop
+
+    mov rax, halt
+    call rax
 
 vacant:
     db 0

@@ -105,8 +105,6 @@ void route_hardware_interrupt(int irq, int gsi, func_ptr_t isr) {
         if (base <= gsi < max) {
             irq_handlers[irq] = isr;
             write_redirection_entry(ioapic_list.ioapics[i].IOAPICBase, gsi - base, irq, 0, 0, 0, 0, 0, 0);
-            printbin(read_redirection_entry(ioapic_list.ioapics[i].IOAPICBase, gsi - base));
-            print("\n");
             return;
         }
     }

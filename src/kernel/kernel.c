@@ -10,8 +10,13 @@
 #include "../../src/include/interrupts.h"
 #include "../../src/include/thread.h"
 #include "../../src/include/mm/allocator.h"
+#include "../../src/include/mm/memory.h"
 
-volatile BootInformationStructure bis;
+volatile BootInformationStructure bis __attribute__((section(".sysvar")));
+
+extern void jump_usermode(void);
+extern volatile uint64_t GDT[];
+extern volatile uint64_t TSS[];
 
 void parse_boot_information(BootInformation* boot_information) {
     uint64_t base = (uint64_t) boot_information;
@@ -53,7 +58,7 @@ void parse_boot_information(BootInformation* boot_information) {
             break;
         case 9:
             bis.present_flags |= (1 << 9);
-            bis.ELF_symbols = base+offset;
+            bis.ELF_symbols = (ELFSymbols*)(base+offset);
             break;
         case 10:
             bis.present_flags |= (1 << 10);
@@ -112,16 +117,43 @@ void parse_boot_information(BootInformation* boot_information) {
 
 }
 
+typedef struct __attribute__((packed)) TSS_Descriptor {
+    uint16_t Limit0;
+    uint16_t Base0;
+    uint8_t Base1;
+    uint8_t AccessByte;
+    uint8_t Limit1_Flags;
+    uint8_t Base2;
+    uint32_t Base3;
+    uint32_t resvd;
+} TSS_Descriptor;
+
+void load_TSS() {
+    TSS_Descriptor* tss_descr = (TSS_Descriptor*)((uint64_t)GDT + 40);
+    tss_descr->Limit0 = 0x64;
+    tss_descr->Base0 = (uint64_t)TSS & 0xffff;
+    tss_descr->Base1 = ((uint64_t)TSS >> 16) & 0xff;
+    tss_descr->AccessByte = 0x89;
+    tss_descr->Limit1_Flags = 0x0;
+    tss_descr->Base2 = ((uint64_t)TSS >> 24) & 0xff;
+    tss_descr->Base3 = ((uint64_t)TSS >> 32) & 0xffffffff;
+    unsigned short ax = 0x28;
+    asm volatile ("ltr %0":: "r"(ax):);
+}
+
 void load_drivers() {
     for (int i = 0; i < device_list.number_devices; i++) {
         if (device_list.devices[i].class == 0xc0330) {
             activate_pins();
             init_xhci_controller(i);
             int gsi = find_pins();
+            print("gsi: ");
+            printdec(gsi);
+            print("\n");
             deactivate_pins();
             route_hardware_interrupt(i+32, 23, (func_ptr_t)interrupt_handler);
-            interrupt_handler(i+32);
-            place_no_op(i);
+            //interrupt_handler(i+32);
+            //place_no_op(i);
         } else if (device_list.devices[i].class == 0x30000) {
 
         }
@@ -136,15 +168,18 @@ static inline uint64_t rdtsc(void) {
     return ((uint64_t)hi << 32) | lo; // Combine hi and lo to get full 64-bit result
 }
 
+void halt(void) {
+    while(1) {
+        asm volatile ("hlt");
+    }
+}
+
+
 
 void __attribute__((optimize("O0"))) kernelmain(BootInformation* multiboot_structure, unsigned int magicnumber) {
     parse_boot_information(multiboot_structure);
-    if ((bis.present_flags & (1 << 6)) >> 6) {
-        init_mem(bis.memory_map);
-    } else {
-        write_string_to_serial("\nERROR: cannot initialize the memory, no memory map provided by the bootloader\n");
-        while(1);
-    }
+    init_memory(multiboot_structure);
+    
     if ((bis.present_flags & (1 << 8)) >> 8) {
         init_graphics(bis.framebuffer_info);
     } else {
@@ -158,21 +193,32 @@ void __attribute__((optimize("O0"))) kernelmain(BootInformation* multiboot_struc
     } else {
         print("\nkernel was booted by: unknown bootloader\n");
     }
+    
     if ((bis.present_flags & (1 << 15)) >> 15) {
         check_XSDT_t_checksum(bis.ACPI_new_RSDP);
         ACPI_Table_Header* xsdt = (ACPI_Table_Header*)(bis.ACPI_new_RSDP->XsdtAddress);
         parse_XSDT(xsdt);
     }
+    if (bis.present_flags & (1 << 9)) {
+        for (int i = 0; i < bis.ELF_symbols->num; i++) {
+            printhex(bis.ELF_symbols->sections[i].address);
+            print(": ");
+            printhex(bis.ELF_symbols->sections[i].offset);
+            print("\n");
+        }
+        print("\n\n\n");
+    }
+    halt();
     init_default_handler();
+    parse_MADT();
     init_APIC();
     init_aps();
-
-    init_syscalls();
-    asm volatile ("int $0x50");
-    asm volatile ("hlt");
-    parse_MADT();
-    init_IOAPIC();
-    enumerate_devices();
+    halt();
+    load_TSS();
+    jump_usermode();
+    //init_syscalls();
+    //init_IOAPIC();
+    //enumerate_devices();
     //set_timer();
     //load_drivers();
 }

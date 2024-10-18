@@ -2,12 +2,12 @@ MAX_RAMSIZE = 0x400000000
 SCREEN_X = 1024
 SCREEN_Y = 600
 
-LDGLAGS = -melf_i386
+LDFLAGS = --oformat elf64-x86-64
 NASMFLAGS = -felf64 -DMAX_RAMSIZE=$(MAX_RAMSIZE) -DSCREEN_X=$(SCREEN_X) -DSCREEN_Y=$(SCREEN_Y)
-GCCFLAGS = -nostdlib -fno-builtin -fno-exceptions -ffreestanding -mno-red-zone -fno-leading-underscore -DMAX_RAMSIZE=$(MAX_RAMSIZE)
+GCCFLAGS = -mcmodel=large -nostdlib -fno-builtin -fno-exceptions -ffreestanding -mno-red-zone -fno-leading-underscore -DMAX_RAMSIZE=$(MAX_RAMSIZE)
 INCLUDES = -I$(PWD)
 
-objects = bin/loader.o bin/kernel.o bin/interrupts.o bin/graphics.o bin/font.o bin/serial_port.o bin/acpi.o bin/apic.o bin/ioapic.o bin/paging.o bin/pci.o bin/xhci.o bin/msi.o bin/allocator.o bin/utils.o bin/thread.o
+objects = bin/loader.o bin/kernel.o bin/interrupts.o bin/graphics.o bin/font.o bin/serial_port.o bin/acpi.o bin/apic.o bin/ioapic.o bin/paging.o bin/pci.o bin/xhci.o bin/msi.o bin/allocator.o bin/utils.o bin/thread.o bin/gdt.o bin/memory.o bin/vmem.o
 asm_files = src/boot/check.asm src/boot/interrupts.asm src/boot/loader.asm src/boot/multiboot2.asm src/boot/paging.asm src/boot/apic.asm src/boot/mp.asm
 
 bin/kernel.o: src/kernel/kernel.c
@@ -47,13 +47,23 @@ bin/msi.o: src/kernel/msi.c
 	@gcc $(GCCFLAGS) $(INCLUDES) -O2 -o $@ -c $<
 
 bin/allocator.o: src/mm/allocator.c
-	@gcc $(GCCFLAGS) $(INCLUDES) -O3 -o $@ -c $<
+	@gcc $(GCCFLAGS) $(INCLUDES) -O2 -o $@ -c $<
 
 bin/utils.o: src/mm/utils.c
-	@gcc $(GCCFLAGS) $(INCLUDES) -O3 -o $@ -c $<
+	@gcc $(GCCFLAGS) $(INCLUDES) -O2 -o $@ -c $<
 
 bin/thread.o: src/kernel/thread.c
-	@gcc $(GCCFLAGS) $(INCLUDES) -O3 -o $@ -c $<
+	@gcc $(GCCFLAGS) $(INCLUDES) -O2 -o $@ -c $<
+
+bin/gdt.o: src/kernel/gdt.c 
+	@gcc $(GCCFLAGS) $(INCLUDES) -O2 -o $@ -c $<
+
+bin/memory.o: src/mm/memory.c 
+	@gcc $(GCCFLAGS) $(INCLUDES) -O2 -o $@ -c $<
+
+bin/vmem.o: src/mm/vmem.c 
+	@gcc $(GCCFLAGS) $(INCLUDES) -O2 -o $@ -c $<
+
 
 bin/loader.o: $(asm_files)
 	@nasm $(NASMFLAGS) src/boot/loader.asm -o $@ 
@@ -64,6 +74,7 @@ bin/mykernel.bin: linker.ld $(objects)
 
 build: bin/mykernel.bin
 	@make -s bin/mykernel.bin
+	@python hack.py bin/mykernel.bin load.txt
 
 install: bin/mykernel.bin
 	@sudo cp $< /boot/mykernel.bin
@@ -82,7 +93,7 @@ qemu:
 	@qemu-system-x86_64 \
 	-machine q35  \
 	-m 2G \
-	-smp cores=12 \
+	-smp cores=2 \
 	-device qemu-xhci \
 	-device usb-kbd \
 	-device usb-mouse \

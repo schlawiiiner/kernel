@@ -1,12 +1,13 @@
 #include "../../src/include/font.h"
 #include "../../src/include/uint.h"
 #include "../../src/include/bootinfo.h"
-#include "../../src/include/mm/paging.h"
+//#include "../../src/include/mm/paging.h"
+#include "../../src/include/mm/memory.h"
 #include "../../src/include/io.h"
 #include "../../src/include/graphics.h"
 
-volatile textmode tm;
-volatile framebuffer fb;
+volatile textmode tm __attribute__((section(".sysvar")));
+volatile framebuffer fb __attribute__((section(".sysvar")));
 
 void flush_cache_line(void *address) {
     // Ensure that the address is aligned to the cache line size
@@ -172,12 +173,7 @@ void init_framebuffer(FramebufferInfo* framebuffer_info) {
     fb.width = framebuffer_info->framebuffer_width;
     fb.height = framebuffer_info->framebuffer_height;
     fb.pitch = framebuffer_info->framebuffer_pitch;
-
-    uint64_t n_pages_for_fb = (fb.height*fb.pitch) / PAGE_SIZE;
-    if (((fb.height*fb.pitch) % PAGE_SIZE) != 0) {
-        n_pages_for_fb += 1; 
-    }
-    fb.address = (uint32_t*)map_vmem_to_pmem(framebuffer_info->framebuffer_addr, n_pages_for_fb, 1, 0, 0, 0);
+    fb.address = (uint32_t*)mmap(framebuffer_info->framebuffer_addr, fb.height*fb.pitch);
 }
 
 void init_graphics(FramebufferInfo* framebuffer_info) {
