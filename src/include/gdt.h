@@ -5,7 +5,7 @@
 /*
 Access Byte (CODE-/DATA SEGMENT)
 */
-#define PRESENT                     1 << 7
+#define GDT_PRESENT                 1 << 7
 #define DPL_RING0                   0b00 << 5
 #define DPL_RING1                   0b01 << 5
 #define DPL_RING2                   0b10 << 5
@@ -53,21 +53,21 @@ typedef struct __attribute__((packed, aligned(8))) SystemSegmentDescriptor {
     uint32_t Reserved;
 } SystemSegmentDescriptor;
 
-typedef struct __attribute__((packed, aligned(8))) GDT {
+typedef struct __attribute__((packed, aligned(8))) GlobalDescriptorTable {
     SegmentDescriptor Null;
     SegmentDescriptor KernelCode;
     SegmentDescriptor KernelData;
     SegmentDescriptor UserCode;
     SegmentDescriptor UserData;
     SystemSegmentDescriptor TSS[];
-} GDT;
+} GlobalDescriptorTable;
 
 typedef struct __attribute__((packed, aligned(4))) GDTR {
     uint16_t Size;      //GDT size - 1
-    GDT* GDTP;
+    GlobalDescriptorTable* GDTP;
 } GDTR;
 
-typedef struct __attribute__((packed, aligned(8))) TSS {
+typedef struct __attribute__((packed, aligned(8))) TaskStateSegment {
     uint32_t Resvd0;
     uint64_t RSP0;
     uint64_t RSP1;
@@ -83,6 +83,6 @@ typedef struct __attribute__((packed, aligned(8))) TSS {
     uint64_t Resvd2;
     uint16_t Resvd3;
     uint16_t IOPB;
-} TSS;
+} TaskStateSegment;
 
 #endif

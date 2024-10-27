@@ -2,15 +2,13 @@
 #include "../../src/include/bootinfo.h"
 #include "../../src/include/io.h"
 #include "../../src/include/graphics.h"
-#include "../../src/include/mm/paging.h"
 #include "../../src/include/apic.h"
 #include "../../src/include/ioapic.h"
 #include "../../src/include/pci.h"
-#include "../../src/include/xhci.h"
 #include "../../src/include/interrupts.h"
 #include "../../src/include/thread.h"
-#include "../../src/include/mm/allocator.h"
 #include "../../src/include/mm/memory.h"
+#include "../../src/include/gdt.h"
 
 volatile BootInformationStructure bis __attribute__((section(".sysvar")));
 
@@ -117,19 +115,8 @@ void parse_boot_information(BootInformation* boot_information) {
 
 }
 
-typedef struct __attribute__((packed)) TSS_Descriptor {
-    uint16_t Limit0;
-    uint16_t Base0;
-    uint8_t Base1;
-    uint8_t AccessByte;
-    uint8_t Limit1_Flags;
-    uint8_t Base2;
-    uint32_t Base3;
-    uint32_t resvd;
-} TSS_Descriptor;
-
 void load_TSS() {
-    TSS_Descriptor* tss_descr = (TSS_Descriptor*)((uint64_t)GDT + 40);
+    SystemSegmentDescriptor* tss_descr = (SystemSegmentDescriptor*)((uint64_t)GDT + 40);
     tss_descr->Limit0 = 0x64;
     tss_descr->Base0 = (uint64_t)TSS & 0xffff;
     tss_descr->Base1 = ((uint64_t)TSS >> 16) & 0xff;
@@ -139,26 +126,19 @@ void load_TSS() {
     tss_descr->Base3 = ((uint64_t)TSS >> 32) & 0xffffffff;
     unsigned short ax = 0x28;
     asm volatile ("ltr %0":: "r"(ax):);
+
+    tss_descr = (SystemSegmentDescriptor*)((uint64_t)GDT + 56);
+    tss_descr->Limit0 = 0x64;
+    tss_descr->Base0 = (uint64_t)TSS & 0xffff;
+    tss_descr->Base1 = ((uint64_t)TSS >> 16) & 0xff;
+    tss_descr->AccessByte = 0x89;
+    tss_descr->Limit1_Flags = 0x0;
+    tss_descr->Base2 = ((uint64_t)TSS >> 24) & 0xff;
+    tss_descr->Base3 = ((uint64_t)TSS >> 32) & 0xffffffff;
+    ax = 0x38;
+    asm volatile ("ltr %0":: "r"(ax):);
 }
 
-void load_drivers() {
-    for (int i = 0; i < device_list.number_devices; i++) {
-        if (device_list.devices[i].class == 0xc0330) {
-            activate_pins();
-            init_xhci_controller(i);
-            int gsi = find_pins();
-            print("gsi: ");
-            printdec(gsi);
-            print("\n");
-            deactivate_pins();
-            route_hardware_interrupt(i+32, 23, (func_ptr_t)interrupt_handler);
-            //interrupt_handler(i+32);
-            //place_no_op(i);
-        } else if (device_list.devices[i].class == 0x30000) {
-
-        }
-    }
-}
 static inline uint64_t rdtsc(void) {
     uint32_t lo, hi;
     asm volatile (
@@ -199,26 +179,17 @@ void __attribute__((optimize("O0"))) kernelmain(BootInformation* multiboot_struc
         ACPI_Table_Header* xsdt = (ACPI_Table_Header*)(bis.ACPI_new_RSDP->XsdtAddress);
         parse_XSDT(xsdt);
     }
-    if (bis.present_flags & (1 << 9)) {
-        for (int i = 0; i < bis.ELF_symbols->num; i++) {
-            printhex(bis.ELF_symbols->sections[i].address);
-            print(": ");
-            printhex(bis.ELF_symbols->sections[i].offset);
-            print("\n");
-        }
-        print("\n\n\n");
-    }
-    halt();
+    
     init_default_handler();
     parse_MADT();
     init_APIC();
-    init_aps();
-    halt();
     load_TSS();
+    init_aps();
     jump_usermode();
+    halt();
+    //halt();
+    //load_TSS();
     //init_syscalls();
     //init_IOAPIC();
     //enumerate_devices();
-    //set_timer();
-    //load_drivers();
 }

@@ -65,7 +65,7 @@ enable_paging:
 
     ; enable PAE-flag in cr4 (Physical Address Extension)
     mov eax, cr4
-    or eax, 0x0000000B0;1 << 5
+    or eax, 1 << 5
     mov cr4, eax
 
     ; set the long mode bit in the EFER MSR (model specific register)

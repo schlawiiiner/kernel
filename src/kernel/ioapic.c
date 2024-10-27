@@ -1,5 +1,5 @@
 #include "../../src/include/uint.h"
-#include "../../src/include/mm/paging.h"
+#include "../../src/include/mm/memory.h"
 #include "../../src/include/graphics.h"
 #include "../../src/include/bootinfo.h"
 #include "../../src/include/apic.h"
@@ -81,7 +81,7 @@ void map_IOAPIC_MMIO(MADT_IO_APIC* ioapic) {
     ioapic_list.ioapics[id].IOAPICBase = (uint32_t*)((uint64_t)(ioapic->IO_APIC_Address));
     uint32_t* IOAPIC_base = ioapic_list.ioapics[id].IOAPICBase;
     ioapic_list.number++;
-    identity_map((uint64_t)IOAPIC_base, 1, 1, 0, 0, 0);
+    map_to((uint64_t)IOAPIC_base, (uint64_t)IOAPIC_base, PAGE_SIZE, 0);
 }
 
 void init_IOAPIC() {

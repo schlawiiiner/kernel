@@ -78,6 +78,9 @@ GDT:
 .TSS:
     dq 0x0000000000000000
     dq 0x0000000000000000
+
+    dq 0x0000000000000000
+    dq 0x0000000000000000
 align 4
     dw 0                              ; Padding to make the "address of the GDT" field aligned on a 4-byte boundary
  
@@ -101,6 +104,7 @@ align 16
 stack_bottom:
     resb 4096*8
 stack_top:
+align 16
 ring0_stack_bottom:
     resb 4096
 ring0_stack_top:
@@ -115,3 +119,8 @@ boot_info:
     resb 4
 irq_handlers:
     resb 4096
+
+section .note.GNU-stack
+; This gets rid of the following warning message
+; ld: warning: bin/loader.o: missing .note.GNU-stack section implies executable stack
+; ld: NOTE: This behaviour is deprecated and will be removed in a future version of the linker

@@ -2,24 +2,32 @@
 #include "../../src/include/mm/memory.h"
 #include "../../src/include/io.h"
 
-VMemNodePool kernel_vmem_node_pool __attribute__((section(".sysvar")));
+VMemNodePool node_pool __attribute__((section(".sysvar")));
 
 
-VMemNodePool* new_pool(VMemNodePool* previous, VMemNodePool *next) {
-    write_string_to_serial("not implemented yet");
-    // this is a bit tricky since this implementation should not rely on the VMem manager due to recursion
-    // Alternatively we could preallocate one pool so that we do not run into this issue
-    asm volatile ("hlt");
+
+void init_pool(VMemNodePool* pool, VMemNodePool* previous, VMemNodePool *next) {
+    pool->previous = previous;
+    pool->next = next;
+    pool->stack_ptr = sizeof(pool->pool)/sizeof(VMemNode)-1;
+    for (int i = 0; i < sizeof(pool->pool)/sizeof(VMemNode); i++) {
+        pool->stack[i] = pool->pool + i;
+    }
+    if (previous) {
+        previous->next = pool;
+    }
+    if (next) {
+        next->previous = pool;
+    }
+    return;
 }
 
 VMemNode* new_node() {
-    VMemNodePool* pool = &kernel_vmem_node_pool;
+    VMemNodePool* pool = &node_pool;
     while(1) {
         if (pool->stack_ptr < 0) {
-            // pool is exhausted
-            if (!pool->next) {
-                pool->next = new_pool(pool, (VMemNodePool*)0x0);
-            }
+            // pool is exhausted so we preallocate a new one
+            asm volatile ("hlt");
             pool = pool->next;
             continue;
         } else {
@@ -31,15 +39,15 @@ VMemNode* new_node() {
 }
 
 void free_node(VMemNode* node) {
-    VMemNodePool* pool = &kernel_vmem_node_pool;
+    VMemNodePool* pool = &node_pool;
     while (1) {
-        if (((uint64_t)pool < (uint64_t)node) && ((uint64_t)node < ((uint64_t)pool+PAGE_SIZE_))) {
+        if (((uint64_t)pool < (uint64_t)node) && ((uint64_t)node < ((uint64_t)pool+PAGE_SIZE))) {
             pool->stack_ptr++;
             pool->stack[pool->stack_ptr] = node;
             break;
         } else {
             if (!pool->next) {
-                write_string_to_serial("ERROR: trying to free a node never allocated");
+                write_string_to_serial("ERROR: trying to free a node that was never allocated");
                 asm volatile ("hlt");
             } else {
                 pool = pool->next;
@@ -194,29 +202,25 @@ void reserve(uint64_t addr, uint64_t size) {
         addr+=0x1000;
     }
 }
+
 uint64_t kmalloc2(uint64_t size) {
     uint64_t vaddr = kvmalloc(size);
     for (uint64_t offset = 0; offset < size; offset+=PAGE_SIZE_) {
-        map_vaddr_to_paddr(mem_info.PML4, vaddr+offset, allocate_page());
+        map_vaddr_to_paddr(mem_info.PML4, vaddr+offset, allocate_physical_page());
     }
     return vaddr;
 }
 
 void init_vmem() {
-    kernel_vmem_node_pool.next = 0x0;
-    kernel_vmem_node_pool.previous = 0x0;
-    for (int i = 0; i < sizeof(kernel_vmem_node_pool.pool)/sizeof(VMemNode); i++) {
-        kernel_vmem_node_pool.stack[i] = kernel_vmem_node_pool.pool + i;
-    }
-    kernel_vmem_node_pool.stack_ptr = sizeof(kernel_vmem_node_pool.pool)/sizeof(VMemNode) - 1;
-    mem_info.KernelNode = kernel_vmem_node_pool.stack[kernel_vmem_node_pool.stack_ptr];
+    init_pool(&node_pool, 0x0, 0x0);
+    mem_info.KernelNode = node_pool.stack[node_pool.stack_ptr];
     mem_info.KernelNode->parent = 0x0;
     mem_info.KernelNode->size = 0x800000000000;
     mem_info.KernelNode->addr = 0xffff800000000000;
     mem_info.KernelNode->max_size = 0x800000000000;
     mem_info.KernelNode->left = 0x0;
     mem_info.KernelNode->right = 0x0;
-    kernel_vmem_node_pool.stack_ptr--;
+    node_pool.stack_ptr--;
 
     // now we have to reserve the space in the kernel virtual address space that is used by the kernel binary
     for (int i = 0; i < memory_map_size; i++) {
@@ -224,4 +228,6 @@ void init_vmem() {
             reserve(memory_map[i].vaddr, memory_map[i].size);
         }
     }
+    //now we reserve the virtual address space that is used for the recursive page table mapping
+    reserve(0xFFFFFF8000000000, 8000000000);
 }

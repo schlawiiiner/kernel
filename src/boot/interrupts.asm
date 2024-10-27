@@ -41,9 +41,11 @@ extern fpu_error_interrupt
     push r13
     push r14
     push r15
+	pushfq
 %endmacro
 
 %macro POP_ALL_REGS 0
+	popfq
     pop r15
     pop r14
     pop r13
@@ -67,15 +69,37 @@ int0:
     cld
     PUSH_ALL_REGS
     mov rdi, rsp
+	mov rax, rsp
+	and rax, 0xf
+	cmp rax, 0
+	jnz .align_stack
     call division_error
+	jmp .end
+.align_stack:
+	sub rsp, 8
+	call division_error
+	add rsp, 8
+.end:
     POP_ALL_REGS
-    iret
+    iretq
 int1:
     cli
     cld
     PUSH_ALL_REGS
     mov rdi, rsp
-    call debug
+	call debug
+	jmp .end
+	mov rax, rsp
+	and rax, 0xf
+	cmp rax, 0
+	jnz .align_stack
+	call debug
+	jmp .end
+.align_stack:
+	sub rsp, 8
+	call debug
+	add rsp, 8
+.end:
     POP_ALL_REGS
     iretq
 int2:
@@ -83,7 +107,17 @@ int2:
     cld
     PUSH_ALL_REGS
     mov rdi, rsp
+	mov rax, rsp
+	and rax, 0xf
+	cmp rax, 0
+	jnz .align_stack
     call non_maskable_interrupt
+	jmp .end
+.align_stack:
+	sub rsp, 8
+	call non_maskable_interrupt
+	add rsp, 8
+.end:
     POP_ALL_REGS
     iretq
 int3:
@@ -91,7 +125,17 @@ int3:
     cld
     PUSH_ALL_REGS
     mov rdi, rsp
+	mov rax, rsp
+	and rax, 0xf
+	cmp rax, 0
+	jnz .align_stack
     call breakpoint
+	jmp .end
+.align_stack:
+	sub rsp, 8
+	call breakpoint
+	add rsp, 8
+.end:
     POP_ALL_REGS
     iretq
 int4:
@@ -99,7 +143,17 @@ int4:
     cld
     PUSH_ALL_REGS
     mov rdi, rsp
+	mov rax, rsp
+	and rax, 0xf
+	cmp rax, 0
+	jnz .align_stack
     call overflow
+	jmp .end
+.align_stack:
+	sub rsp, 8
+	call overflow
+	add rsp, 8
+.end:
     POP_ALL_REGS
     iretq
 int5:
@@ -107,7 +161,17 @@ int5:
     cld
     PUSH_ALL_REGS
     mov rdi, rsp
+	mov rax, rsp
+	and rax, 0xf
+	cmp rax, 0
+	jnz .align_stack
     call bound_range_exceeded
+	jmp .end
+.align_stack:
+	sub rsp, 8
+	call bound_range_exceeded
+	add rsp, 8
+.end:
     POP_ALL_REGS
     iretq
 int6:
@@ -115,7 +179,17 @@ int6:
     cld
     PUSH_ALL_REGS
     mov rdi, rsp
+	mov rax, rsp
+	and rax, 0xf
+	cmp rax, 0
+	jnz .align_stack
     call invalid_opcode
+	jmp .end
+.align_stack:
+	sub rsp, 8
+	call invalid_opcode
+	add rsp, 8
+.end:
     POP_ALL_REGS
     iretq
 int7:
@@ -123,7 +197,17 @@ int7:
     cld
     PUSH_ALL_REGS
     mov rdi, rsp
+	mov rax, rsp
+	and rax, 0xf
+	cmp rax, 0
+	jnz .align_stack
     call device_not_available
+	jmp .end
+.align_stack:
+	sub rsp, 8
+	call device_not_available
+	add rsp, 8
+.end:
     POP_ALL_REGS
     iretq
 int8:
@@ -131,7 +215,17 @@ int8:
     cld
     PUSH_ALL_REGS
     mov rdi, rsp
+	mov rax, rsp
+	and rax, 0xf
+	cmp rax, 0
+	jnz .align_stack
     call double_fault
+	jmp .end
+.align_stack:
+	sub rsp, 8
+	call double_fault
+	add rsp, 8
+.end:
     POP_ALL_REGS
     iretq
 int9:
@@ -139,7 +233,17 @@ int9:
     cld
     PUSH_ALL_REGS
     mov rdi, rsp
+	mov rax, rsp
+	and rax, 0xf
+	cmp rax, 0
+	jnz .align_stack
     call coprocessor_segment_overrun
+	jmp .end
+.align_stack:
+	sub rsp, 8
+	call coprocessor_segment_overrun
+	add rsp, 8
+.end:
     POP_ALL_REGS
     iretq
 int10:
@@ -147,7 +251,17 @@ int10:
     cld
     PUSH_ALL_REGS
     mov rdi, rsp
+	mov rax, rsp
+	and rax, 0xf
+	cmp rax, 0
+	jnz .align_stack
     call invalid_tss
+	jmp .end
+.align_stack:
+	sub rsp, 8
+	call invalid_tss
+	add rsp, 8
+.end:
     POP_ALL_REGS
     iretq
 int11:
@@ -155,7 +269,17 @@ int11:
     cld
     PUSH_ALL_REGS
     mov rdi, rsp
+	mov rax, rsp
+	and rax, 0xf
+	cmp rax, 0
+	jnz .align_stack
     call segment_not_present
+	jmp .end
+.align_stack:
+	sub rsp, 8
+	call segment_not_present
+	add rsp, 8
+.end:
     POP_ALL_REGS
     iretq
 int12:
@@ -163,15 +287,35 @@ int12:
     cld
     PUSH_ALL_REGS
     mov rdi, rsp
+	mov rax, rsp
+	and rax, 0xf
+	cmp rax, 0
+	jnz .align_stack
     call stack_segment_fault
+	jmp .end
+.align_stack:
+	sub rsp, 8
+	call stack_segment_fault
+	add rsp, 8
+.end:
     POP_ALL_REGS
     iretq
 int13:
     cli
     cld
     PUSH_ALL_REGS
-    mov rdi, rsp
+    mov rdi, rsp					; argument for function call
+	mov rax, rsp
+	and rax, 0xf
+	cmp rax, 0
+	jnz .align_stack
     call general_protection_fault
+	jmp .end
+.align_stack:
+	sub rsp, 8
+	call general_protection_fault
+	add rsp, 8
+.end:
     POP_ALL_REGS
     iretq
 int14:
@@ -179,7 +323,17 @@ int14:
     cld
     PUSH_ALL_REGS
     mov rdi, rsp
+	mov rax, rsp
+	and rax, 0xf
+	cmp rax, 0
+	jnz .align_stack
     call page_fault
+	jmp .end
+.align_stack:
+	sub rsp, 8
+	call page_fault
+	add rsp, 8
+.end:
     POP_ALL_REGS
     iretq
 int15:
@@ -190,53 +344,113 @@ int15:
 	mov rax, [irq_handlers+120]
 	call rax
 	POP_ALL_REGS
-	iretqq
+	iretq
 int16:
     cli
     cld
     PUSH_ALL_REGS
     mov rdi, rsp
+	mov rax, rsp
+	and rax, 0xf
+	cmp rax, 0
+	jnz .align_stack
     call x87_floating_point_exception
+	jmp .end
+.align_stack:
+	sub rsp, 8
+	call x87_floating_point_exception
+	add rsp, 8
+.end:
     POP_ALL_REGS
     iretq
 int17:
-    cli
+        cli
     cld
     PUSH_ALL_REGS
     mov rdi, rsp
+	mov rax, rsp
+	and rax, 0xf
+	cmp rax, 0
+	jnz .align_stack
     call alignment_check
+	jmp .end
+.align_stack:
+	sub rsp, 8
+	call alignment_check
+	add rsp, 8
+.end:
     POP_ALL_REGS
     iretq
 int18:
-    cli
+        cli
     cld
     PUSH_ALL_REGS
     mov rdi, rsp
+	mov rax, rsp
+	and rax, 0xf
+	cmp rax, 0
+	jnz .align_stack
     call machine_check
+	jmp .end
+.align_stack:
+	sub rsp, 8
+	call machine_check
+	add rsp, 8
+.end:
     POP_ALL_REGS
     iretq
 int19:
-    cli
+        cli
     cld
     PUSH_ALL_REGS
     mov rdi, rsp
+	mov rax, rsp
+	and rax, 0xf
+	cmp rax, 0
+	jnz .align_stack
     call simd_floating_point_exception
+	jmp .end
+.align_stack:
+	sub rsp, 8
+	call simd_floating_point_exception
+	add rsp, 8
+.end:
     POP_ALL_REGS
     iretq
 int20:
-    cli
+        cli
     cld
     PUSH_ALL_REGS
     mov rdi, rsp
+	mov rax, rsp
+	and rax, 0xf
+	cmp rax, 0
+	jnz .align_stack
     call virtualization_exception
+	jmp .end
+.align_stack:
+	sub rsp, 8
+	call virtualization_exception
+	add rsp, 8
+.end:
     POP_ALL_REGS
     iretq
 int21:
-    cli
+        cli
     cld
     PUSH_ALL_REGS
     mov rdi, rsp
+	mov rax, rsp
+	and rax, 0xf
+	cmp rax, 0
+	jnz .align_stack
     call control_protection_exception
+	jmp .end
+.align_stack:
+	sub rsp, 8
+	call control_protection_exception
+	add rsp, 8
+.end:
     POP_ALL_REGS
     iretq
 int22:
@@ -294,27 +508,57 @@ int27:
 	POP_ALL_REGS
 	iretq
 int28:
-    cli
+        cli
     cld
     PUSH_ALL_REGS
     mov rdi, rsp
+	mov rax, rsp
+	and rax, 0xf
+	cmp rax, 0
+	jnz .align_stack
     call hypervisor_injection_exception
+	jmp .end
+.align_stack:
+	sub rsp, 8
+	call hypervisor_injection_exception
+	add rsp, 8
+.end:
     POP_ALL_REGS
-    iret
+    iretq
 int29:
-    cli
+        cli
     cld
     PUSH_ALL_REGS
     mov rdi, rsp
+	mov rax, rsp
+	and rax, 0xf
+	cmp rax, 0
+	jnz .align_stack
     call vmm_communication_exception
+	jmp .end
+.align_stack:
+	sub rsp, 8
+	call vmm_communication_exception
+	add rsp, 8
+.end:
     POP_ALL_REGS
     iretq
 int30:
-    cli
+        cli
     cld
     PUSH_ALL_REGS
     mov rdi, rsp
+	mov rax, rsp
+	and rax, 0xf
+	cmp rax, 0
+	jnz .align_stack
     call security_exception
+	jmp .end
+.align_stack:
+	sub rsp, 8
+	call security_exception
+	add rsp, 8
+.end:
     POP_ALL_REGS
     iretq
 int31:
@@ -2382,7 +2626,7 @@ make_entry_interrupt:
     ret
 
 enable_interrupts:
-jmp clear_IDT
+	jmp clear_IDT
 disable_pic: ; otherwise the PIC-timer would trigger an double fault (it is mapped to 0x8)
     mov dx, 0x21 ;PIC1 DATA
     mov al, 0xff

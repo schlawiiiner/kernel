@@ -1,7 +1,6 @@
 #include "../../src/include/font.h"
 #include "../../src/include/uint.h"
 #include "../../src/include/bootinfo.h"
-//#include "../../src/include/mm/paging.h"
 #include "../../src/include/mm/memory.h"
 #include "../../src/include/io.h"
 #include "../../src/include/graphics.h"
@@ -173,7 +172,7 @@ void init_framebuffer(FramebufferInfo* framebuffer_info) {
     fb.width = framebuffer_info->framebuffer_width;
     fb.height = framebuffer_info->framebuffer_height;
     fb.pitch = framebuffer_info->framebuffer_pitch;
-    fb.address = (uint32_t*)mmap(framebuffer_info->framebuffer_addr, fb.height*fb.pitch);
+    fb.address = (uint32_t*)mmap(framebuffer_info->framebuffer_addr, fb.height*fb.pitch, CACHE_DISABLE | WRITE_THROUGH);
 }
 
 void init_graphics(FramebufferInfo* framebuffer_info) {

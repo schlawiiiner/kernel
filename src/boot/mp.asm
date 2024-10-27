@@ -6,12 +6,13 @@ global vacant
 global count
 extern init_APIC
 extern halt
+extern mem_info
+extern write_hex_to_serial
 
 bits 16
 section .trampoline
 align 4096                      ; trampoline code must be 4KiB alligned
 trampoline_start:
-    cli
 .wait:
     mov al, 1
     xchg al, [vacant]
@@ -46,6 +47,10 @@ ProtectedMode:
 
 bits 64
 LongMode:
+    ; now we reload the proper page table
+    mov rax, [mem_info+24]
+    mov cr3, rax
+
     mov ax, DATA_SEG
     mov ds, ax
     mov es, ax
@@ -53,6 +58,7 @@ LongMode:
     mov gs, ax
     mov ss, ax
 
+    cli
     lidt [IDTP]
 
     mov ax, DATA_SEG
@@ -70,7 +76,6 @@ LongMode:
     add cl, 1
     mov byte [count], cl
     mov byte [vacant], 0
-
     mov rax, halt
     call rax
 

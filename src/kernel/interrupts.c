@@ -22,6 +22,7 @@ void irq_handler(uint64_t irq) {
 
 void default_handler_func(uint64_t irq) {
     irq_probe = irq;
+    print(".");
     send_EOI();
 }
 
@@ -35,34 +36,34 @@ void map_isr(uint8_t irq, func_ptr_t function) {
     irq_handlers[irq] = function;
 }
 
-void kernel_panic(char* str, int error_code, uint64_t*rsp) {
-    
-    char *registers[19];
-    registers[0]  = "\n R15   : ";
-    registers[1]  = "\n R14   : ";
-    registers[2]  = "\n R13   : ";
-    registers[3]  = "\n R12   : ";
-    registers[4]  = "\n R11   : ";
-    registers[5]  = "\n R10   : ";
-    registers[6]  = "\n R9    : ";
-    registers[7]  = "\n R8    : ";
-    registers[8]  = "\n RBP   : ";
-    registers[9]  = "\n RDI   : ";
-    registers[10] = "\n RSI   : ";
-    registers[11] = "\n RDX   : ";
-    registers[12] = "\n RCX   : ";
-    registers[13] = "\n RBX   : ";
-    registers[14] = "\n RAX   : ";
-    registers[15] = "\n ERR   : ";
-    registers[16] = "\n RIP   : ";
-    registers[17] = "\n CS    : ";
-    registers[18] = "\n EFLAGS: ";
-
+void __attribute__((optimize("O1"))) kernel_panic(char* str, int error_code, uint64_t*rsp) {
+    char *registers[20];
+    registers[0]  = "\n FLAGS : ";
+    registers[1]  = "\n R15   : ";
+    registers[2]  = "\n R14   : ";
+    registers[3]  = "\n R13   : ";
+    registers[4]  = "\n R12   : ";
+    registers[5]  = "\n R11   : ";
+    registers[6]  = "\n R10   : ";
+    registers[7]  = "\n R9    : ";
+    registers[8]  = "\n R8    : ";
+    registers[9]  = "\n RBP   : ";
+    registers[10] = "\n RDI   : ";
+    registers[11] = "\n RSI   : ";
+    registers[12] = "\n RDX   : ";
+    registers[13] = "\n RCX   : ";
+    registers[14] = "\n RBX   : ";
+    registers[15] = "\n RAX   : ";
+    registers[16] = "\n ERR   : ";
+    registers[17] = "\n RIP   : ";
+    registers[18] = "\n CS    : ";
+    registers[19] = "\n EFLAGS: ";
     write_string_to_serial("\n ------ KERNEL PANIC ------\n");
     write_string_to_serial(str);
+    
     int j = 0;
-    for (int i = 0; i < 19; i++){
-        if (i == 15){
+    for (int i = 0; i < 20; i++){
+        if (i == 16){
             if (0 == error_code) {
                 i++;
             }
@@ -71,15 +72,14 @@ void kernel_panic(char* str, int error_code, uint64_t*rsp) {
         write_hex_to_serial(rsp[j]);
         j++;
     }
-
     set_color(0xff0000, 0x000000);
     fill_screen(0x0000);
     set_cursor(0, 0);
     print("\n ------ KERNEL PANIC ------\n");
     print(str);
     j = 0;
-    for (int i = 0; i < 19; i++){
-        if (i == 15){
+    for (int i = 0; i < 20; i++){
+        if (i == 16){
             if (0 == error_code) {
                 i++;
             }
@@ -146,7 +146,6 @@ void stack_segment_fault(uint64_t* rsp) {
 void general_protection_fault(uint64_t* rsp) {
     kernel_panic("\n GENERAL PROTECTION FAULT\n", 1, rsp);
 }
-
 void page_fault(uint64_t* rsp){
     kernel_panic("\n PAGE FAULT\n", 1, rsp);
 }

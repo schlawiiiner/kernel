@@ -2,8 +2,9 @@
 #define MEMORY_H
 #include "../../../src/include/bootinfo.h"
 #include "../../../src/include/uint.h"
-#include "../../../src/include/mm/paging.h"
+#include "../../../src/include/mm/utils.h"
 
+#define PAGE_SIZE               0x200000
 #define PAGE_SIZE_              0x1000
 #define PT_RANGE                (uint64_t)PAGE_SIZE_*0x200
 #define PD_RANGE                (uint64_t)PT_RANGE*0x200
@@ -13,14 +14,25 @@
 
 
 #define AVAILABLE           0x1
-#define ACPI_INFO           0x3
-#define PRESERVED           0x4
+#define RESERVED            0x2
+#define ACPI                0x3
+#define ACPI_NVS            0x4
 #define DEFECTIVE           0x5
-#define BOOTINFO            0x6
-#define KERNEL              0x7
-#define PAGESTACK           0x8
-#define PAGETABLE           0x9
+#define PERSISTANT          0x7
 #define UNKNOWN             0x14
+
+#define BOOTINFO            0x100
+#define KERNEL              0x101
+#define PAGESTACK           0x102
+#define PAGETABLE           0x103
+
+#define PRESENT             (1 << 0)
+#define READ_WRITE          (1 << 1)
+#define USER_SUPERVISOR     (1 << 2)
+#define WRITE_THROUGH       (1 << 3)
+#define CACHE_DISABLE       (1 << 4)
+#define PS                  (1 << 7)
+#define EXECUTE_DISABLE     (1 << 63)
 
 typedef struct __attribute__((packed)) KernelMemoryMap {
     uint64_t base_addr;
@@ -60,20 +72,20 @@ struct __attribute__((packed)) VMemNode {
 
 typedef struct VMemNodePool VMemNodePool;
 struct __attribute__((packed, aligned(4096))) VMemNodePool {
-    VMemNodePool* previous; // Pointer to the previous pool (for linked list traversal)
-    VMemNodePool* next;     // Pointer to the next pool (for linked list traversal)
-    int stack_ptr;          // Stack pointer to track the available nodes
-    uint32_t reserved[11];  // Padding to ensure the structure fits within one page
-    VMemNode* stack[72];    // Stack of pointers to free nodes
-    VMemNode pool[72];      // Actual pool of 72 preallocated VMemNode structures
-};  // This fits exactly in one page
+    VMemNodePool* previous;
+    VMemNodePool* next;
+    int stack_ptr;
+    uint8_t reserved[44];
+    VMemNode* stack[37448];
+    VMemNode pool[37448];
+};  // This fits exactly in one huge page
 
 typedef struct __attribute__((packed)) MemoryInformation {
     uint64_t memory_size;
     uint32_t *page_stack;
     int stack_ptr;
     uint32_t reserved;
-    uint64_t* PML4;
+    uint64_t* PML4;                 // be carefull when changing this struct, since the trampoline code accesses the PML4 variable in a hardcoded way
     VMemNode* KernelNode;
 } MemoryInformation;
 
@@ -81,17 +93,22 @@ typedef struct __attribute__((packed)) MemoryInformation {
 
 extern volatile MemoryInformation mem_info;
 
-extern uint8_t priority;
-extern uint64_t kvaddr;
-extern uint64_t page_counter;
-
 extern TotalMemoryMap memory_map[100];
 extern int memory_map_size;
 extern KernelMemoryMap kernel_mmap[3];
 
-uint64_t mmap(uint64_t paddr, uint64_t size);
+uint64_t mmap(uint64_t paddr, uint64_t size, uint64_t flags);
+void map_to(uint64_t vaddr, uint64_t paddr, uint64_t size, uint64_t flags);
+void insert_mmap_entry(uint64_t paddr, uint64_t vaddr, uint64_t type, uint64_t size);
 void init_memory(BootInformation* multiboot_structure);
 void map_vaddr_to_paddr(uint64_t* pml4, uint64_t vaddr, uint64_t paddr);
-uint64_t allocate_page();
+uint64_t allocate_physical_page();
+void generate_mmap(BootInformation* multiboot_structure);
+uint64_t get_available_memory_size();
 void init_vmem(void);
+void allocate_page_stack(void);
+void fill_page_stack(void);
+uint64_t allocate_huge_slot(uint64_t type);
+uint64_t kmalloc2(uint64_t size);
+uint64_t kvmalloc(uint64_t size);
 #endif

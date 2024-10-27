@@ -2,7 +2,7 @@
 #include "../../src/include/graphics.h"
 #include "../../src/include/pci.h"
 #include "../../src/include/apic.h"
-#include "../../src/include/mm/paging.h"
+#include "../../src/include/mm/memory.h"
 #include "../../src/include/acpi.h"
 
 volatile PCI_DEV_List device_list __attribute__((section(".sysvar")));
@@ -67,8 +67,10 @@ void __attribute__((optimize("O0"))) map_32_BAR(uint32_t* bar_ptr, int bar_numbe
         if (bar & 0b1000) {
             //prefetchable
             cache_disable = 0;
+            map_to(page_addr, page_addr, n_pages*PAGE_SIZE, 0x0);
+        } else {
+            map_to(page_addr, page_addr, n_pages*PAGE_SIZE, WRITE_THROUGH | CACHE_DISABLE);
         }
-        io_map(page_addr, n_pages, 1, 0, cache_disable, cache_disable);
 
         device_list.devices[device_number].bars[bar_number].base_address = addr;
         device_list.devices[device_number].bars[bar_number].addr_range = 0x0;
@@ -117,17 +119,18 @@ void __attribute__((optimize("O0"))) map_64_BAR(uint32_t* bar_ptr, int bar_numbe
         if (size % PAGE_SIZE) {
             n_pages++;
         }
-        int cd = 1; //cache disable
+        int cache_disable = 1;
         if (bara & 0b1000) {
             //prefetchable
-            cd = 0;
+            cache_disable = 0;
+            map_to(page_addr, page_addr, n_pages*PAGE_SIZE, 0x0);
+        } else {
+            map_to(page_addr, page_addr, n_pages*PAGE_SIZE, WRITE_THROUGH | CACHE_DISABLE);
         }
-        io_map(page_addr, n_pages, 1, 0, cd, cd);
-
         for (int i = 0; i < 2; i++) {
             device_list.devices[device_number].bars[bar_number+i].base_address = addr;
             device_list.devices[device_number].bars[bar_number+i].addr_range = 0x1;
-            device_list.devices[device_number].bars[bar_number+i].prefetchable = (uint8_t)!cd;
+            device_list.devices[device_number].bars[bar_number+i].prefetchable = (uint8_t)!cache_disable;
             device_list.devices[device_number].bars[bar_number+i].present = 0x1;
             device_list.devices[device_number].bars[bar_number+i].size = size;
             device_list.devices[device_number].bars[bar_number+i].type = 0x1;

@@ -2,7 +2,7 @@
 #include "../../src/include/bootinfo.h"
 #include "../../src/include/graphics.h"
 #include "../../src/include/apic.h"
-#include "../../src/include/mm/paging.h"
+#include "../../src/include/mm/memory.h"
 #include "../../src/include/ioapic.h"
 #include "../../src/include/interrupts.h"
 #include "../../src/include/io.h"
@@ -163,6 +163,12 @@ void __attribute__((optimize("O0"))) dump_apic_regs(void) {
         printhex(((uint32_t*)(base+i))[0]);
         print("\n");
     }
+    for (int i = 0; i < 0x400; i+=0x10) {
+        write_hex_to_serial(APIC_BASE + i);
+        write_string_to_serial(" : ");
+        write_hex_to_serial(((uint32_t*)(base+i))[0]);
+        write_string_to_serial("\n");
+    }
 }
 
 void set_timer() {
@@ -176,7 +182,6 @@ void set_timer() {
 void __attribute__((optimize("O0"))) init_aps(void) {
     vacant[0] = 0;
     count[0] = 1;
-
     //INIT IPI
     send_IPI(0,0, ICR_ALL_EXCLUDING_SELF|ICR_LEVEL_TRIGGERD|ICR_ASSERT|ICR_PHYSICAL|ICR_INIT);
     int timeout = 0x100000;
@@ -201,9 +206,7 @@ void __attribute__((optimize("O0"))) init_aps(void) {
 }
 
 void init_APIC(void) {
-    if (identity_map(APIC_BASE, 1, 1, 0, 0, 0)) {
-        /*catch error*/
-    }
+    map_to(APIC_BASE, APIC_BASE, PAGE_SIZE, 0x0);
     
     uint32_t err_code = enable_APIC(); 
     if (err_code != 0x0) {
