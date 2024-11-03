@@ -9,6 +9,8 @@
 #include "../../src/include/thread.h"
 #include "../../src/include/mm/memory.h"
 #include "../../src/include/gdt.h"
+#include "../../src/include/mp.h"
+#include "../../src/include/mm/slab.h"
 
 volatile BootInformationStructure bis __attribute__((section(".sysvar")));
 
@@ -159,13 +161,7 @@ void halt(void) {
 void __attribute__((optimize("O0"))) kernelmain(BootInformation* multiboot_structure, unsigned int magicnumber) {
     parse_boot_information(multiboot_structure);
     init_memory(multiboot_structure);
-    
-    if ((bis.present_flags & (1 << 8)) >> 8) {
-        init_graphics(bis.framebuffer_info);
-    } else {
-        write_string_to_serial("\nERROR: cannot initialize the graphics, no frambuffer info provided by the bootloader");
-        while(1);
-    }
+    init_graphics();
     if ((bis.present_flags & (1 << 2)) >> 2) {
         print("\nkernel was booted by: ");
         print((char *)(bis.boot_loader_name) + 8);
@@ -181,11 +177,13 @@ void __attribute__((optimize("O0"))) kernelmain(BootInformation* multiboot_struc
     }
     
     init_default_handler();
-    parse_MADT();
+    //parse_MADT();
+    init_cpus();
     init_APIC();
     load_TSS();
     init_aps();
-    jump_usermode();
+    init_slab_allocator();
+    //jump_usermode();
     halt();
     //halt();
     //load_TSS();

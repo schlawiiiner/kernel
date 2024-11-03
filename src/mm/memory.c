@@ -145,6 +145,49 @@ void huge_map(uint64_t vaddr, uint64_t paddr, uint64_t flags) {
 }
 
 /*
+returns the physical address vaddr is mapped to. If vaddr is not mapped 0x0 is returned. The most significant bit indicates
+that (if set) vaddr is mapped to a huge page 
+*/
+uint64_t get_paddr(uint64_t vaddr) {
+    uint64_t p4_offset = (vaddr >> 39) & 0x1FF;
+    uint64_t p3_offset = (vaddr >> 30) & 0x1FF;
+    uint64_t p2_offset = (vaddr >> 21) & 0x1FF;
+    uint64_t p1_offset = (vaddr >> 12) & 0x1FF;
+    uint64_t offset = vaddr & 0xfff;
+
+    uint64_t* p4 = (uint64_t*)(0xFFFFFFFFFFFFF000);
+    if (!(p4[p4_offset] & PRESENT)) {
+        return 0x0;
+    }
+    uint64_t* p3 = (uint64_t*)(0xFFFFFFFFFFE00000 | (p4_offset << 12));
+    if (!(p3[p3_offset] & PRESENT)) {
+        return 0x0;
+    }
+    uint64_t* p2 = (uint64_t*)(0xFFFFFFFFC0000000 | (p4_offset << 21) | (p3_offset << 12));
+    if (!(p2[p2_offset] & PRESENT)) {
+        return 0x0;
+    } else if (p2[p2_offset] & PS) {
+        return ((uint64_t)1 << 63) | (p2[p2_offset] & (uint64_t)0xffffffffff000) + offset + (p1_offset << 12);
+    }
+    uint64_t* p1 = (uint64_t*)(0xFFFFFF8000000000 | (p4_offset << 30) | (p3_offset << 21) | (p2_offset << 12));
+    return (p1[p1_offset] & (uint64_t)0xffffffffff000) + offset;
+}
+
+void unmap(uint64_t vaddr) {
+    uint64_t p4_offset = (vaddr >> 39) & 0x1FF;
+    uint64_t p3_offset = (vaddr >> 30) & 0x1FF;
+    uint64_t p2_offset = (vaddr >> 21) & 0x1FF;
+    uint64_t p1_offset = (vaddr >> 12) & 0x1FF;
+    
+    uint64_t* p2 = (uint64_t*)(0xFFFFFFFFC0000000 | (p4_offset << 21) | (p3_offset << 12));
+    if (p2[p2_offset] & PS) {
+        p2[p2_offset] = (uint64_t)0x0;
+    } else {
+        uint64_t* p1 = (uint64_t*)(0xFFFFFF8000000000 | (p4_offset << 30) | (p3_offset << 21) | (p2_offset << 12));
+        p1[p1_offset] = (uint64_t)0x0;
+    }
+}
+/*
 maps the physical address space of size 'size' starting at base address 'paddr' to a virtual address that gets returned
 note: of size is not power of two it gets magnified to a power of two
 */

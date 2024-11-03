@@ -100,16 +100,12 @@ void update_max_size(VMemNode* node) {
             if ((parent->left->max_size == 0) || (parent->left->max_size == parent->left->size)) {
                 merge_nodes(parent);
                 continue;
+            } else {
+                parent->max_size = parent->left->max_size;
             }
         } else if (parent->left->max_size > parent->right->max_size) {
-            if (parent->max_size == parent->left->max_size) {
-                return;
-            }
             parent->max_size = parent->left->max_size;
         } else {
-            if (parent->max_size == parent->right->max_size) {
-                return;
-            }
             parent->max_size = parent->right->max_size;
         }
         
@@ -119,7 +115,6 @@ void update_max_size(VMemNode* node) {
 
 
 uint64_t kvmalloc(uint64_t size) {
-    //size must be power of two
     VMemNode* node = mem_info.KernelNode;
     if (size > node->max_size) {
         write_string_to_serial("virtual address space is not large enough");
@@ -127,7 +122,7 @@ uint64_t kvmalloc(uint64_t size) {
     }
     while (1) {
         if (node->size == size) {
-            // we found a slot 
+            // we found a slot
             uint64_t addr = node->addr;
             node->max_size = 0x0;
             update_max_size(node);
@@ -145,6 +140,51 @@ uint64_t kvmalloc(uint64_t size) {
         }
     }
 }
+
+void dump_tree() {
+    write_string_to_serial("---------------- DUMP MEMORY TREE ----------------\n");
+    VMemNode* node = mem_info.KernelNode;
+    while(1) {
+        if (node->max_size == node->size) {
+            write_string_to_serial("free     : ");
+            write_hex_to_serial(node->addr);
+            write_string_to_serial("\t");
+            write_hex_to_serial(node->size);
+            write_string_to_serial("\n");
+            while(1) {
+                if (node == node->parent->right) {
+                    node = node->parent;
+                    if (node == mem_info.KernelNode) {
+                        return;
+                    }
+                } else {
+                    node = node->parent->right;
+                    break;
+                }
+            }
+        } else if (node->max_size == 0x0) {
+            write_string_to_serial("allocated: ");
+            write_hex_to_serial(node->addr);
+            write_string_to_serial("\t");
+            write_hex_to_serial(node->size);
+            write_string_to_serial("\n");
+            while(1) {
+                if (node == node->parent->right) {
+                    node = node->parent;
+                    if (node == mem_info.KernelNode) {
+                        return;
+                    }
+                } else {
+                    node = node->parent->right;
+                    break;
+                }
+            }
+        } else {
+            node = node->left;
+        }
+    }
+}
+    
 
 void kvfree(uint64_t addr, uint64_t size) {
     VMemNode* node = mem_info.KernelNode;
@@ -172,6 +212,17 @@ void kvfree(uint64_t addr, uint64_t size) {
         }
     }
 }
+
+uint64_t find_alignement(uint64_t addr) {
+    uint64_t alignment = 12;
+    uint64_t cp = addr >> alignment;
+    while ((cp & 1) == 0) {
+        cp >>= 1;
+        alignment++;
+    }
+    return (uint64_t)1 << alignment;
+}
+
 void reserve(uint64_t addr, uint64_t size) {
     //size must be a multiple of 0x1000
     if (size % 0x1000) {
@@ -180,9 +231,14 @@ void reserve(uint64_t addr, uint64_t size) {
     }
     uint64_t max = addr + size;
     while (addr < max) {
+        size = find_alignement(addr);
+        if (max > (size + addr)) {
+            size = find_alignement(max - addr);
+        }
+
         VMemNode* node = mem_info.KernelNode;
         while(1) {
-            if (0x1000 == node->size) {
+            if (size == node->size) {
                 node->max_size = 0x0;
                 update_max_size(node);
                 break;
@@ -199,16 +255,37 @@ void reserve(uint64_t addr, uint64_t size) {
                 node = node->left;
             }
         }
-        addr+=0x1000;
-    }
+        addr+=size;
+    }  
 }
 
-uint64_t kmalloc2(uint64_t size) {
+uint64_t kmalloc(uint64_t size) {
     uint64_t vaddr = kvmalloc(size);
     for (uint64_t offset = 0; offset < size; offset+=PAGE_SIZE_) {
         map_vaddr_to_paddr(mem_info.PML4, vaddr+offset, allocate_physical_page());
     }
     return vaddr;
+}
+
+void kfree(uint64_t addr, uint64_t size) {
+    for (uint64_t offset = 0; offset < size; offset+=PAGE_SIZE_) {
+        uint64_t paddr = get_paddr(addr+offset);
+        if (!paddr) {
+            write_string_to_serial("addr has never been allocated");
+            while (1); 
+        }
+        if (paddr & ((uint64_t)1 << 63)) {
+            //the most significant bit is set, so the address is mapped to a huge page
+            paddr = paddr & ~((uint64_t)1 << 63);
+            for (uint64_t off = 0; off < PAGE_SIZE; off+=PAGE_SIZE_) {
+                free_physical_page(paddr+off);
+            }
+        } else {
+            free_physical_page(paddr);
+        }
+    }
+    kvfree(addr, size);
+    unmap(addr);
 }
 
 void init_vmem() {
@@ -230,4 +307,5 @@ void init_vmem() {
     }
     //now we reserve the virtual address space that is used for the recursive page table mapping
     reserve(0xFFFFFF8000000000, 8000000000);
+    dump_tree();
 }

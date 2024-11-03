@@ -175,7 +175,12 @@ void init_framebuffer(FramebufferInfo* framebuffer_info) {
     fb.address = (uint32_t*)mmap(framebuffer_info->framebuffer_addr, fb.height*fb.pitch, CACHE_DISABLE | WRITE_THROUGH);
 }
 
-void init_graphics(FramebufferInfo* framebuffer_info) {
-    init_framebuffer(framebuffer_info);
-    init_text_mode(framebuffer_info);
+void init_graphics(void) {
+    if ((bis.present_flags & (1 << 8)) >> 8) {
+        init_framebuffer(bis.framebuffer_info);
+        init_text_mode(bis.framebuffer_info);
+    } else {
+        write_string_to_serial("\nERROR: cannot initialize the graphics, no frambuffer info provided by the bootloader");
+        while(1);
+    }
 }

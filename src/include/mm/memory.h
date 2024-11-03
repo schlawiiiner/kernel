@@ -99,16 +99,24 @@ extern KernelMemoryMap kernel_mmap[3];
 
 uint64_t mmap(uint64_t paddr, uint64_t size, uint64_t flags);
 void map_to(uint64_t vaddr, uint64_t paddr, uint64_t size, uint64_t flags);
+void unmap(uint64_t vaddr);
 void insert_mmap_entry(uint64_t paddr, uint64_t vaddr, uint64_t type, uint64_t size);
 void init_memory(BootInformation* multiboot_structure);
 void map_vaddr_to_paddr(uint64_t* pml4, uint64_t vaddr, uint64_t paddr);
 uint64_t allocate_physical_page();
+void free_physical_page(uint64_t addr);
 void generate_mmap(BootInformation* multiboot_structure);
 uint64_t get_available_memory_size();
 void init_vmem(void);
 void allocate_page_stack(void);
 void fill_page_stack(void);
 uint64_t allocate_huge_slot(uint64_t type);
-uint64_t kmalloc2(uint64_t size);
+
+uint64_t kmalloc(uint64_t size);
+void kfree(uint64_t addr, uint64_t size);
+
 uint64_t kvmalloc(uint64_t size);
+void kvfree(uint64_t addr, uint64_t size);
+
+uint64_t get_paddr(uint64_t vaddr);
 #endif

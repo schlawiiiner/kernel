@@ -8,7 +8,7 @@ typedef struct __attribute__((packed)) CPU {
     uint8_t APIC_ID;
     uint8_t Initialized;
     uint8_t reserved[5];
-    TSS tss;
+    TaskStateSegment tss;
 } CPU;
 
 typedef struct __attribute__((packed)) CPUs {
@@ -16,5 +16,7 @@ typedef struct __attribute__((packed)) CPUs {
     uint8_t reserved[7];
     CPU cpu[];
 } CPUs;
+
+void init_cpus(void);
 
 #endif

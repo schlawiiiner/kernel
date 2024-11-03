@@ -25,7 +25,6 @@ void allocate_page_stack() {
             if (memory_map[i].size > size) {
                 insert_mmap_entry(memory_map[i].paddr, memory_map[i].paddr, PAGESTACK, size);
                 mem_info.page_stack = (uint32_t*)memory_map[i].paddr;
-                dump_mmap();
                 return;
             }
         }
