@@ -158,7 +158,7 @@ void halt(void) {
 
 
 
-void __attribute__((optimize("O0"))) kernelmain(BootInformation* multiboot_structure, unsigned int magicnumber) {
+void kernelmain(BootInformation* multiboot_structure, unsigned int magicnumber) {
     parse_boot_information(multiboot_structure);
     init_memory(multiboot_structure);
     init_graphics();
@@ -177,12 +177,13 @@ void __attribute__((optimize("O0"))) kernelmain(BootInformation* multiboot_struc
     }
     
     init_default_handler();
+    init_slab_allocator();
     //parse_MADT();
     init_cpus();
     init_APIC();
     load_TSS();
     init_aps();
-    init_slab_allocator();
+    switch_cpu(1);
     //jump_usermode();
     halt();
     //halt();

@@ -6,6 +6,7 @@
 #include "../../src/include/ioapic.h"
 #include "../../src/include/interrupts.h"
 #include "../../src/include/io.h"
+#include "../../src/include/mp.h"
 
 /*see apic.asm*/
 extern uint32_t enable_APIC(void);
@@ -112,7 +113,7 @@ void  __attribute__((optimize("O0"))) send_IPI(int APIC_ID, int vector, int flag
     icr_read = icr[0];
     icr_read &= 0b11111111111100110011000000000000;
     icr_read |= flags | (vector & 0xff);
-    icr[0] = icr_read;   
+    icr[0] = icr_read;
 }
 
 void __attribute__((optimize("O0"))) apic_err() {
@@ -201,28 +202,46 @@ void __attribute__((optimize("O0"))) init_aps(void) {
         timeout--;
     }
     while(__atomic_load_n(vacant, __ATOMIC_ACQUIRE));
-    print("all APs ready\n\n");
+    for (int i = 0; i < cpus->number; i++) {
+        if (cpus->cpu[i].Initialized) {
+            print("cpu ");
+            printdec(cpus->cpu[i].Processor_ID);
+            print(": online\n");
+        }
+    }
     return;
 }
 
 void init_APIC(void) {
     map_to(APIC_BASE, APIC_BASE, PAGE_SIZE, 0x0);
-    
-    uint32_t err_code = enable_APIC(); 
+    uint32_t err_code = enable_APIC();
     if (err_code != 0x0) {
         if (err_code == 0x1) {
             print("no APIC");
         } else if (err_code == 0x2) {
             print("no MSR");
+        } else {
+            print("unexpected error wile enabling APIC");
         }
-        while (1);
+        while(1);
     }
     remap_APIC_registers((uint32_t)APIC_BASE);
-    print("initializing processor: ");
     uint32_t* id = (uint32_t*)(APIC_BASE+LOCAL_APIC_ID_REG_OFFSET);
-    printdec((uint64_t)(id[0] >> 24));
-    print("\n");
+    uint8_t apic_id = (uint8_t)(id[0] >> 24);
+    int not_found = 1;
+    for (int i = 0; i < cpus->number; i++) {
+        if (apic_id == cpus->cpu[i].APIC_ID) {
+            cpus->cpu[i].Initialized = 0x1;
+            not_found = 0;
+            break;
+        }
+    }
+    if (not_found) {
+        print("invalid apic_id");
+        while(1);
+    }
     uint32_t *spurious_vector = (uint32_t *)(APIC_BASE + SPURIOUS_INT_VECTOR_REG_OFFSET);
     spurious_vector[0] = 0x120;
     init_err();
+    return;
 }

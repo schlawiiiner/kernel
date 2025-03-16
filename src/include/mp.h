@@ -8,7 +8,7 @@ typedef struct __attribute__((packed)) CPU {
     uint8_t APIC_ID;
     uint8_t Initialized;
     uint8_t reserved[5];
-    TaskStateSegment tss;
+    TaskStateSegment Tss;
 } CPU;
 
 typedef struct __attribute__((packed)) CPUs {
@@ -17,6 +17,23 @@ typedef struct __attribute__((packed)) CPUs {
     CPU cpu[];
 } CPUs;
 
-void init_cpus(void);
+typedef struct Task Task;
 
+struct __attribute__((packed)) Task {
+    uint64_t ID;
+    Task* previous;
+    Task* next;
+};
+
+typedef struct __attribute__((packed)) TaskQueue {
+    int size;
+    volatile int lock;
+    uint64_t task_counter;
+    Task* enqueue;
+    Task* dequeue;
+} TaskQueue;
+
+void init_cpus(void);
+void switch_cpu(int cpu_number);
+extern volatile CPUs* cpus;
 #endif

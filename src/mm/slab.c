@@ -7,8 +7,22 @@
 Slab slab_buffer[SLAB_BUFFER_SIZE] __attribute__((section(".sysvar")));
 SlabStructPool slab_struc_pool __attribute__((section(".sysvar")));
 
+void allocate_new_slab_pool() {
+    SlabStructPool* pool = (SlabStructPool*)kmalloc(PAGE_SIZE_);
+    pool->previous = &slab_struc_pool;
+    pool->next = slab_struc_pool.next;
+    if (slab_struc_pool.next) {
+        slab_struc_pool.next->previous = pool;
+    }
+    slab_struc_pool.next = pool;
+    pool->base_addr = (uint64_t)pool;
+    for (int i = 0; i < SLAB_STRUCT_POOL_SIZE; i++) {
+        pool->stack[i] = (uint64_t)&pool->pool[i];
+    }
+}
+
 // size is a multiple of the granularity
-void __attribute__((optimize("O0"))) allocate_new_slab(uint64_t chunk_size, uint32_t size) {
+void allocate_new_slab(uint64_t chunk_size, uint32_t size) {
     int index;
     int granularity = 1024;
     if (size > 0x80000) {
@@ -56,8 +70,8 @@ void __attribute__((optimize("O0"))) allocate_new_slab(uint64_t chunk_size, uint
                 if (pool->next) {
                     pool = pool->next;
                 } else {
-                    print("allocate new Slab Pool");
-                    while(1);
+                    allocate_new_slab_pool();
+                    pool = slab_struc_pool.next;
                 }
             }
         }
@@ -94,7 +108,7 @@ uint64_t malloc(uint64_t size) {
             } else {
                 if (slab->next == 0x0) {
                     allocate_new_slab(size, 1);
-                    return malloc(size);
+                    slab = &slab_buffer[index];
                 }
                 slab = slab->next;
             }
@@ -102,16 +116,38 @@ uint64_t malloc(uint64_t size) {
     } else {
         return kmalloc(size);
     }
-
 }
 
-static inline uint64_t rdtsc(void) {
-    uint32_t lo, hi;
-    asm volatile (
-        "rdtsc"            // Read Time-Stamp Counter
-        : "=a"(lo), "=d"(hi) // Outputs to lo and hi
-    );
-    return ((uint64_t)hi << 32) | lo; // Combine hi and lo to get full 64-bit result
+void free(uint64_t addr, uint64_t size) {
+    int highestBit = 32 - __builtin_clz(size); 
+    size = (uint64_t)1 << (highestBit - 1);
+    int index = highestBit - 3;
+    if (index < SLAB_BUFFER_SIZE) {
+        Slab* slab = &slab_buffer[index];
+        if (slab->slab_size == 0) {
+            print("ERROR: slab allocator was never initialized");
+            while(1);
+        }
+        while(1) {
+            if ((addr & ~(slab->base_addr)) < slab->slab_size*slab->chunk_size) {
+                slab->stack_ptr++;
+                if (slab->stack_ptr >= slab->slab_size) {
+                    print("ERROR: Memory was freed multiple times");
+                    while(1);
+                }
+                slab->stack[slab->stack_ptr] = (uint32_t)(addr & ~(slab->base_addr));
+                return;
+            } else {
+                if (slab->next == 0x0) {
+                    print("ERROR: slab allocator was never initialized");
+                    while(1);
+                }
+                slab = slab->next;
+            }
+        }
+    } else {
+        kfree(addr, size);
+    }
 }
 
 void init_slab_allocator() {
@@ -123,24 +159,4 @@ void init_slab_allocator() {
         slab_struc_pool.stack_ptr++;
         slab_struc_pool.stack[slab_struc_pool.stack_ptr] = addr;
     }
-    uint64_t average = 0;
-    uint64_t worst = 0;
-    uint64_t best = 0x1000000000;
-    for (int i = 0; i < 0x1000; i++) {
-        uint64_t start = rdtsc();
-        malloc(0x10);
-        uint64_t dt = rdtsc() - start;
-        if (dt < best) {
-            best = dt;
-        } else if (dt > worst) {
-            worst = dt;
-        }
-        average += dt;
-    }
-    average /= 0x1000;
-    printhex(average);
-    print("\n");
-    printhex(worst);
-    print("\n");
-    printhex(best);
 }

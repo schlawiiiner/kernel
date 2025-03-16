@@ -119,4 +119,7 @@ uint64_t kvmalloc(uint64_t size);
 void kvfree(uint64_t addr, uint64_t size);
 
 uint64_t get_paddr(uint64_t vaddr);
+
+uint64_t malloc(uint64_t size);
+void free(uint64_t addr, uint64_t size);
 #endif

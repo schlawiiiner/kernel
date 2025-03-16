@@ -80,8 +80,8 @@ void merge_nodes(VMemNode* parent) {
     parent->max_size = parent->left->max_size + parent->right->max_size;
     free_node(parent->left);
     free_node(parent->right);
-    parent->left = 0x0;
-    parent->right = 0x0;
+    parent->left = (VMemNode*)0x0;
+    parent->right = (VMemNode*)0x0;
 }
 
 void update_max_size(VMemNode* node) {
@@ -129,10 +129,19 @@ uint64_t kvmalloc(uint64_t size) {
             return addr;
         } else {
             // we have to go one level deeper
+            if (node->left) {
+                if ((uint64_t)node->left & ((uint64_t)1 << 63)) {
+                    //
+                } else {
+                    print("ERROR ");
+                    printhex((uint64_t)&node->left);
+                    while (1);
+                }
+            }
             if (!node->left) {
                 split_node(node);
-            }
-            if (node->left->max_size >= size) {
+                node = node->left;
+            } else if (node->left->max_size >= size) {
                 node = node->left;
             } else {
                 node = node->right;
@@ -230,12 +239,15 @@ void reserve(uint64_t addr, uint64_t size) {
         asm volatile ("hlt");
     }
     uint64_t max = addr + size;
+    uint64_t remaining_size = size;
     while (addr < max) {
         size = find_alignement(addr);
-        if (max > (size + addr)) {
-            size = find_alignement(max - addr);
+        if (size > remaining_size) {
+            while(size > remaining_size) {
+                size = size >> 1;
+            }
         }
-
+        
         VMemNode* node = mem_info.KernelNode;
         while(1) {
             if (size == node->size) {
@@ -256,6 +268,7 @@ void reserve(uint64_t addr, uint64_t size) {
             }
         }
         addr+=size;
+        remaining_size-=size;
     }  
 }
 
@@ -307,5 +320,4 @@ void init_vmem() {
     }
     //now we reserve the virtual address space that is used for the recursive page table mapping
     reserve(0xFFFFFF8000000000, 8000000000);
-    dump_tree();
 }
