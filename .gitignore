@@ -1,6 +1,7 @@
 *.o
 *.bin
 *.iso
+*.raw
 .vscode
 dissasembly.txt
 serial.log
