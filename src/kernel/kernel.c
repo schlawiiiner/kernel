@@ -6,11 +6,11 @@
 #include "../../src/include/ioapic.h"
 #include "../../src/include/pci.h"
 #include "../../src/include/interrupts.h"
-#include "../../src/include/thread.h"
 #include "../../src/include/mm/memory.h"
 #include "../../src/include/gdt.h"
 #include "../../src/include/mp.h"
 #include "../../src/include/mm/slab.h"
+#include "../../src/include/nvme.h"
 
 volatile BootInformationStructure bis __attribute__((section(".sysvar")));
 
@@ -156,8 +156,6 @@ void halt(void) {
     }
 }
 
-
-
 void kernelmain(BootInformation* multiboot_structure, unsigned int magicnumber) {
     parse_boot_information(multiboot_structure);
     init_memory(multiboot_structure);
@@ -183,12 +181,16 @@ void kernelmain(BootInformation* multiboot_structure, unsigned int magicnumber) 
     init_APIC();
     load_TSS();
     init_aps();
-    switch_cpu(1);
+    //switch_cpu(1);
     //jump_usermode();
-    halt();
     //halt();
     //load_TSS();
-    //init_syscalls();
     //init_IOAPIC();
-    //enumerate_devices();
+    enumerate_devices();
+    int device_count = get_device_number();
+    for (int i = 0; i < device_count; i++) {
+        volatile PCI_DEV* dev = get_device(i);
+        init_nvme_controller(dev);
+    }
+    halt();
 }

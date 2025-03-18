@@ -9,6 +9,21 @@
 volatile CPUs* cpus __attribute__((section(".sysvar")));
 TaskQueue task_queue __attribute__((section(".sysvar")));
 
+volatile CPU* fetch_cpu_data(uint64_t apic_id) {
+    volatile CPU* cpu = &cpus[apic_id];
+    if (cpu->APIC_ID != apic_id) {
+        for (int i = 0; i < cpus->number; i++) {
+            if (cpus->cpu[i].APIC_ID == apic_id) {
+                return &cpus->cpu[i];
+            }
+        }
+    } else {
+        return cpu;
+    }
+    print("invalid apic id");
+    while(1);
+}
+
 void enqueue_task() {
     while (__atomic_exchange_n(&task_queue.lock, 1, __ATOMIC_ACQUIRE))
         while (task_queue.lock)
@@ -34,20 +49,20 @@ void enqueue_task() {
     __atomic_store_n(&task_queue.lock, 0, __ATOMIC_RELEASE);
 }
 
-void dequeue_task() {
+Task* dequeue_task() {
     while (__atomic_exchange_n(&task_queue.lock, 1, __ATOMIC_ACQUIRE))
         while (task_queue.lock)
             __asm__ volatile("pause");
 
     if (task_queue.size == 0) {
         print("task queue is empty, nothing to dequeue\n");
-        return;
+        return 0x0;
     }
-    printdec(task_queue.dequeue->ID);
-    print("\n");
+    Task* task = task_queue.dequeue;
     task_queue.dequeue = task_queue.dequeue->next;
 
     __atomic_store_n(&task_queue.lock, 0, __ATOMIC_RELEASE);
+    return task;
 }
 
 void remove_task(Task* task) {
@@ -68,8 +83,42 @@ void remove_task(Task* task) {
     __atomic_store_n(&task_queue.lock, 0, __ATOMIC_RELEASE);
 }
 
-void task_switcher(uint64_t irq) {
-    dequeue_task();
+void __attribute__((optimize("O1"))) task_switcher(uint64_t* rsp, uint64_t irq) {
+    Task *task = dequeue_task();
+    if ((Task*)0x0 == task) {
+        return;
+    }
+    uint32_t ebx;
+    asm volatile("cpuid" : "=b"(ebx) : "a"(1) : "ecx", "edx");
+    uint64_t apic_id = (ebx >> 24) & 0xFF;
+    
+    volatile CPU* cpu = fetch_cpu_data(apic_id);
+    
+    if ((Task*)0x0 == cpu->Current_Task) {
+        print("WARNING: Running task has no Task struct\n");
+    } else {
+        cpu->Current_Task->registers.RFLAGS = rsp[0];
+        cpu->Current_Task->registers.R15 = rsp[1];
+        cpu->Current_Task->registers.R14 = rsp[2];
+        cpu->Current_Task->registers.R13 = rsp[3];
+        cpu->Current_Task->registers.R12 = rsp[4];
+        cpu->Current_Task->registers.R11 = rsp[5];
+        cpu->Current_Task->registers.R10 = rsp[6];
+        cpu->Current_Task->registers.R9 = rsp[7];
+        cpu->Current_Task->registers.R8 = rsp[8];
+        cpu->Current_Task->registers.RBP = rsp[9];
+        cpu->Current_Task->registers.RDI = rsp[10];
+        cpu->Current_Task->registers.RSI = rsp[11];
+        cpu->Current_Task->registers.RDX = rsp[12];
+        cpu->Current_Task->registers.RCX = rsp[13];
+        cpu->Current_Task->registers.RBX = rsp[14];
+        cpu->Current_Task->registers.RAX = rsp[15];
+        cpu->Current_Task->registers.RIP = rsp[16];
+        cpu->Current_Task->registers.CS = rsp[17];
+    }
+
+    
+
 }
 
 void init_task_switcher() {
@@ -79,7 +128,6 @@ void init_task_switcher() {
     task_queue.dequeue = (Task*)0x0;
     task_queue.enqueue = (Task*)0x0;
 }
-
 
 
 void init_cpus() {
@@ -113,6 +161,7 @@ void init_cpus() {
                 cpus->cpu[i].APIC_ID = entry0->APIC_ID;
                 cpus->cpu[i].Initialized = 0x0;
                 cpus->cpu[i].Processor_ID = entry0->ACPI_Processor_ID;
+                cpus->cpu[i].Current_Task = (Task*)0x0;
                 i++;
             }
             offset+= entry0->Length;
@@ -131,8 +180,6 @@ void switch_cpu(int apic_id) {
     for (int i = 0; i < 1000; i++) {
         enqueue_task();
     }
-    send_IPI(1, 0x20, ICR_NO_SCHORTHAND | ICR_EDGE_TRIGGERD | ICR_FIXED);
-    send_IPI(2, 0x20, ICR_NO_SCHORTHAND | ICR_EDGE_TRIGGERD | ICR_FIXED);
     send_IPI(3, 0x20, ICR_NO_SCHORTHAND | ICR_EDGE_TRIGGERD | ICR_FIXED);
     while(1);
 }

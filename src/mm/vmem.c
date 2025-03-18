@@ -1,9 +1,9 @@
 #include "../../src/include/uint.h"
 #include "../../src/include/mm/memory.h"
 #include "../../src/include/io.h"
+#include "../../src/include/graphics.h"
 
 VMemNodePool node_pool __attribute__((section(".sysvar")));
-
 
 
 void init_pool(VMemNodePool* pool, VMemNodePool* previous, VMemNodePool *next) {

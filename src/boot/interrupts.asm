@@ -576,9 +576,21 @@ int32:
 	cli
 	cld
 	PUSH_ALL_REGS
-	mov rdi, 32
+	mov rdi, rsp
+	mov rsi, 32
+	mov rax, rsp
+	and rax, 0xf
+	cmp rax, 0
+	jnz .align_stack
+	mov rax, [irq_handlers+256]
+    call rax
+	jmp .end
+.align_stack:
+	sub rsp, 8
 	mov rax, [irq_handlers+256]
 	call rax
+	add rsp, 8
+.end:
 	POP_ALL_REGS
 	iretq
 int33:

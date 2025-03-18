@@ -5,7 +5,7 @@
 #include "../../src/include/ioapic.h"
 #include "../../src/include/io.h"
 
-void irq_handler(uint64_t irq) {
+void irq_handler(uint64_t* rsp, uint64_t irq) {
     printdec(irq);
     if(irq == 0x22) {
         apic_err();
@@ -20,7 +20,7 @@ void irq_handler(uint64_t irq) {
     send_EOI();
 }
 
-void default_handler_func(uint64_t irq) {
+void default_handler_func(uint64_t* rsp, uint64_t irq) {
     irq_probe = irq;
     print(".");
     send_EOI();

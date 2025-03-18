@@ -4,48 +4,71 @@
 #include "../../src/include/apic.h"
 #include "../../src/include/mm/memory.h"
 #include "../../src/include/acpi.h"
+#include "../../src/include/io.h"
 
 volatile PCI_DEV_List device_list __attribute__((section(".sysvar")));
-/*Returns the offset of the capability with ID id in the PCI configuration space, if not present returns zero as offset*/
-uint16_t capability(PCIHeader* device, int id) {
-    //check if capability list is implemented
-    if ((device->Status & (1 << 4)) >> 4) {
-        uint32_t* cap;
-        if (device->Header_Type == 0x0) {
-            cap =  (uint32_t*)((((PCIHeaderType0 *)device)->Capabilities_Pointer & 0b11111100) + (uint64_t)device);
-        } else if (device->Header_Type == 0x1) {
-            cap =  (uint32_t*)((((PCIHeaderType1 *)device)->Capability_Pointer & 0b11111100) + (uint64_t)device);
-        } else {
-            cap =  (uint32_t*)((((PCIHeaderType2 *)device)->Offset_Of_Capabilities_List & 0b11111100) + (uint64_t)device);
-        }
-        uint16_t next_ptr = (cap[0] >> 8) & 0xff;
-        while (next_ptr != 0) {
-            if ((cap[0] & 0xff) == id) {
-                return (uint16_t)((uint64_t)cap - (uint64_t)device);
-            }
-            cap = (uint32_t *)(next_ptr + (uint64_t)device);
-            next_ptr = (cap[0] >> 8) & 0xff;
-        }
-    }
-    return 0x0;
-}
 
-void dump_capability(PCIHeader* device) {
-    if (device->Header_Type != 0) {
-        print(" nan\n");
+void add_capabilities(volatile PCI_DEV* device) {
+    PCIHeader* header = device->PCI_Config_Space;
+    if (!(header->Status & (1 << 4))) {
         return;
     }
-    if ((device->Status & (1 << 4)) >> 4) {
-        uint32_t* cap = (uint32_t*)((((PCIHeaderType0 *)device)->Capabilities_Pointer & 0b11111100) + (uint64_t)device);
-        uint16_t next_ptr = (cap[0] >> 8) & 0xff;
-        while (next_ptr != 0) {
-            printhex(cap[0] & 0xff);
-            print(" ");
-            cap = (uint32_t *)(next_ptr + (uint64_t)device);
-            next_ptr = (cap[0] >> 8) & 0xff;
-        }
+    uint8_t* cap_ptr;
+    switch (device->hdr_type) {
+    case 0x0:
+        cap_ptr = (uint8_t*)header + (((PCIHeaderType0*)header)->Capabilities_Pointer & ~3);
+        break;
+    case 0x1:
+        cap_ptr =  (uint8_t*)header + (((PCIHeaderType1*)header)->Capability_Pointer & ~3);
+        break;
+    case 0x2:
+        cap_ptr = (uint8_t*)header + (((PCIHeaderType2*)header)->Offset_Of_Capabilities_List & ~3);
+        break;
+    default:
+        print("unknown Header Type ");
+        printdec(device->hdr_type);
+        print("\n");
+        return;
     }
-    print(" nan\n");
+    for (int i = 0; i < 256 && cap_ptr; i++) {
+        uint8_t cap_id = *cap_ptr;
+        switch (cap_id) {
+        case 0x1:
+            device->pci_pmi_cap_offset = (uint16_t)((uint64_t)cap_ptr - (uint64_t)header);
+            break;
+        case 0x5:
+            device->msi_cap_offset = (uint16_t)((uint64_t)cap_ptr - (uint64_t)header);
+            break;
+        case 0x10:
+            device->pcie_cap_offset = (uint16_t)((uint64_t)cap_ptr - (uint64_t)header);
+            break;
+        case 0x11:
+            device->msix_cap_offset = (uint16_t)((uint64_t)cap_ptr - (uint64_t)header);
+            break;
+        default:
+            //TODO: other ID's must to be implemented and added to the PCI_DEV struct
+            break;
+        }
+        uint8_t next_ptr = *(cap_ptr + 1);
+        cap_ptr = next_ptr ? ((uint8_t*)header + (next_ptr & ~3)) : 0x0;
+    }
+}
+
+void dump_capability(volatile PCI_DEV* device) {
+        print("\n ------- PCI Capabilities -------\n");
+    if (device->pci_pmi_cap_offset) {
+        print("  PCI Power Management Interface\n");
+    }
+    if (device->pcie_cap_offset) {
+        print("  PCI Express\n");
+    }
+    if (device->msi_cap_offset) {
+        print("  MSI\n");
+    }
+    if (device->msix_cap_offset) {
+        print("  MSI-X\n");
+    }
+    print(" --------------------------------\n");
 }
 
 void __attribute__((optimize("O0"))) map_32_BAR(uint32_t* bar_ptr, int bar_number, int device_number) {
@@ -198,15 +221,17 @@ void add_device(MCFG_entry* entry, int bus, int slot, int func) {
     device_list.devices[n].PCI_Config_Space = device;
     
     device_list.devices[n].irq = 0;
-
-    device_list.devices[n].msi_cap_offset = capability(device, 0x5);
-    device_list.devices[n].msix_cap_offset = capability(device, 0x11);
-    device_list.devices[n].pcie_cap_offset = capability(device, 0x10);
+    
+    add_capabilities(&device_list.devices[n]);
 
     device_list.number_devices++;
 }
 
 void dump_device(int id) {
+    if (id >= device_list.number_devices) {
+        print("Invalid device id");
+        return;
+    }
     print("-------------------------------------------\n");
     print("Vendor ID: ");
     printhex(device_list.devices[id].vendor);
@@ -215,7 +240,29 @@ void dump_device(int id) {
     print("\nClass    : ");
     printhex(device_list.devices[id].class);
     print("\n-------------------------------------------\n\n");
+
+    write_string_to_serial("-------------------------------------------\n");
+    write_string_to_serial("Vendor ID: ");
+    write_hex_to_serial(device_list.devices[id].vendor);
+    write_string_to_serial("\nDevice ID: ");
+    write_hex_to_serial(device_list.devices[id].device);
+    write_string_to_serial("\nClass    : ");
+    write_hex_to_serial(device_list.devices[id].class);
+    write_string_to_serial("\n-------------------------------------------\n\n");
 }
+
+volatile PCI_DEV* get_device(int id) {
+    if (id >= device_list.number_devices) {
+        print("Invalid device id");
+        return (volatile PCI_DEV*)0x0;
+    }
+    return &device_list.devices[id];
+}
+
+int get_device_number() {
+    return device_list.number_devices;
+}
+
 void dump_devices() {
     for (int i = 0; i < device_list.number_devices; i++) {
         dump_device(i);

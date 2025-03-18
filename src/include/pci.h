@@ -128,6 +128,29 @@ typedef struct __attribute__((packed)) PCIHeaderType2 {
     uint32_t _16_Bit_PC_Card_Legacy_Mode_Base_Address;
 } PCIHeaderType2;
 
+typedef struct __attribute__((packed)) PCIe_CAP {
+    uint8_t ID;
+    uint8_t next_CAP_ptr;
+    uint16_t PCIe_CAP_REG;
+    uint32_t Device_Capabilities;
+    uint16_t Device_Control;
+    uint16_t Device_Status;
+    uint32_t Link_Capabilities;
+    uint16_t Link_Control;
+    uint16_t Link_Status;
+    uint32_t Slot_Capabilities;
+    uint16_t Slot_Control;
+    uint16_t Slot_Status;
+    uint16_t Root_Control;
+    uint16_t Root_Capabilities;
+    uint32_t Root_Status;
+    uint32_t Device_Compatibilities_2;
+    uint16_t Device_Control_2;
+    uint16_t Device_Status_2;
+    uint32_t Link_Capabilities_2;
+    uint16_t Link_Control_2;
+    uint16_t Link_Status_2;
+} PCIe_CAP;
 /*
 -----------------------------------------------------------
 OS specific structures, generated during device enumeration
@@ -164,6 +187,7 @@ typedef struct __attribute__((packed)) PCI_DEV {
     uint16_t msi_cap_offset;
     uint16_t msix_cap_offset;
     uint16_t pcie_cap_offset;
+    uint16_t pci_pmi_cap_offset;
 
     uint64_t driver_config_space;
 } PCI_DEV;
@@ -176,4 +200,8 @@ typedef struct __attribute__((packed)) PCI_DEV_List {
 extern volatile PCI_DEV_List device_list;
 
 void enumerate_devices();
+void dump_devices();
+void dump_capability(volatile PCI_DEV* device);
+volatile PCI_DEV* get_device(int id);
+int get_device_number();
 #endif
