@@ -10,7 +10,7 @@ volatile PCI_DEV_List device_list __attribute__((section(".sysvar")));
 
 void add_capabilities(volatile PCI_DEV* device) {
     PCIHeader* header = device->PCI_Config_Space;
-    if (!(header->Status & (1 << 4))) {
+    if (!(header->Status & CAPABILITIES_LIST)) {
         return;
     }
     uint8_t* cap_ptr;

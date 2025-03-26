@@ -151,6 +151,40 @@ typedef struct __attribute__((packed)) PCIe_CAP {
     uint16_t Link_Control_2;
     uint16_t Link_Status_2;
 } PCIe_CAP;
+
+typedef struct __attribute__((packed)) PCI_Power_Management_CAP {
+    uint8_t ID;
+    uint8_t next_ptr;
+    uint16_t PMC;       // Power Management Capabilities
+    uint16_t PMCSR;     // Power Management Control/Status Register
+    uint8_t PMCSR_BSE;  // Bridge Support Extension
+    uint8_t Data;
+} PCI_Power_Management_CAP;
+
+/*Command Register Bits*/
+#define IO_SPACE                            1 << 0
+#define MEMORY_SPACE                        1 << 1
+#define BUS_MASTER                          1 << 2
+#define SPECIAL_CYCLES                      1 << 3
+#define MEMORY_WRITE_AND_INVALIDATE_ENABLE  1 << 4
+#define VGA_PALETTE_SNOOP                   1 << 5
+#define PARITY_ERROR_RESPONSE               1 << 6
+#define STEPPING_CONTROL                    1 << 7
+#define SERR_ENABLE                         1 << 8
+#define FAST_BACK_TO_BACK_ENABLE            1 << 9
+
+/*Device Status*/
+#define CAPABILITIES_LIST                   1 << 4
+#define _66MHZ_CAPABLE                      1 << 5
+#define FAST_BACK_TO_BACK_CAPABLE           1 << 7
+#define MASTER_DATA_PARITY_ERROR            1 << 8
+#define DEVSEL_TIMING                       0b11 << 9
+#define SIGNAL_TARGET_ABORT                 1 << 11
+#define RECEIVED_TARGET_ABORT               1 << 12
+#define RECEIVED_MASTER_ABORT               1 << 13
+#define SIGNALED_SYSTEM_ERROR               1 << 14
+#define DETECTED_PARITY_ERROR               1 << 15
+
 /*
 -----------------------------------------------------------
 OS specific structures, generated during device enumeration
@@ -189,7 +223,7 @@ typedef struct __attribute__((packed)) PCI_DEV {
     uint16_t pcie_cap_offset;
     uint16_t pci_pmi_cap_offset;
 
-    uint64_t driver_config_space;
+    void * driver_config_space;
 } PCI_DEV;
 
 typedef struct __attribute__((packed)) PCI_DEV_List {
