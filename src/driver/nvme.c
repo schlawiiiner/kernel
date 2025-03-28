@@ -2,6 +2,9 @@
 #include "../../src/include/mm/memory.h"
 #include "../../src/include/mm/utils.h"
 #include "../../src/include/io.h"
+#include "../../src/include/msi.h"
+#include "../../src/include/apic.h"
+#include "../../src/include/interrupts.h"
 
 inline ControllerProperties* get_controller_properties(volatile PCI_DEV* device) {
     return ((NVME_ConfigSpace*)(device->driver_config_space))->CP;
@@ -121,17 +124,25 @@ void configure_admin_queues(volatile PCI_DEV* device) {
 
 void check_command_sets(volatile PCI_DEV* device) {
     ControllerProperties* cp = get_controller_properties(device);
-    if ((cp->CAP >> 44) & 1) {
-        //NOIOCSS is set
-        cp->CC = (cp->CC & ~(uint32_t)(0b111 << 4)) | (uint32_t)(0b111 << 4);
-    } else if ((cp->CAP >> 43) & 1) {
-        //IOCSS is set
-        cp->CC = (cp->CC & ~(uint32_t)(0b111 << 4)) | (uint32_t)(0b110 << 4);
-    } else if ((cp->CAP >> 37) & 1) {
-        //IOCSS is cleared and NCSS is set
+    uint8_t bits = ((cp->CAP >> 37) & 0b001) | ((cp->CAP >> 42) & 0b010) | ((cp->CAP >> 43) & 0b100);
+    switch (bits) {
+    case 0b001:
         cp->CC = (cp->CC & ~(uint32_t)(0b111 << 4)) | (uint32_t)(0b000 << 4);
+        break;
+    case 0b011:
+        cp->CC = (cp->CC & ~(uint32_t)(0b111 << 4)) | (uint32_t)(0b110 << 4);
+        break;
+    case 0b101:
+        cp->CC = (cp->CC & ~(uint32_t)(0b111 << 4)) | (uint32_t)(0b111 << 4);
+        break; 
+    default:
+        print("ERROR: invalid combination of CAP.CSS bits");
+        while (1);
+        break;
     }
+    return;
 }
+
 
 void set_arbitration_mechanism(volatile PCI_DEV* device) {
     ControllerProperties* cp = get_controller_properties(device);
@@ -153,7 +164,7 @@ void init_cid_stack(volatile PCI_DEV* device) {
     return;
 }
 
-void* identify_command(volatile PCI_DEV* device, uint8_t cns, uint32_t nsid, uint16_t cntid, uint16_t csi, uint16_t cnssid, uint8_t uidx) {
+uint16_t identify_command(volatile PCI_DEV* device, void* buffer_vaddr, uint8_t cns, uint32_t nsid, uint16_t cntid, uint16_t csi, uint16_t cnssid, uint8_t uidx) {
     NVME_ConfigSpace* cs = get_nvme_config_space(device);
     NVME_SubmissionQueueEntry* cmd = cs->ASQ_vaddr + cs->ASQ_tail;
     cmd->Opcode = 0x06;
@@ -163,10 +174,78 @@ void* identify_command(volatile PCI_DEV* device, uint8_t cns, uint32_t nsid, uin
     cmd->CDW[0] = cns | (cntid << 16);
     cmd->CDW[1] = (csi << 24) | cnssid;
     cmd->CDW[4] = 0b1111111 & uidx;
-    uint64_t prp = malloc(0x1000);
-    cmd->PRP[0] = get_paddr(prp);
+    if ((uint64_t)buffer_vaddr == 0x0) {
+        cmd->PRP[0] = 0x0;
+    } else {
+        cmd->PRP[0] = get_paddr((uint64_t)buffer_vaddr);
+    }
     ring_admin_submission_queue_doorbell(device);
-    return (void*)prp;
+    return cmd->Command_ID;
+}
+
+uint16_t set_features_command(volatile PCI_DEV* device, void* buffer_vaddr, uint8_t fid, uint8_t sv, uint8_t uidx, uint8_t iocsci) {
+    NVME_ConfigSpace* cs = get_nvme_config_space(device);
+    NVME_SubmissionQueueEntry* cmd = cs->ASQ_vaddr + cs->ASQ_tail;
+    cmd->Opcode = 0x9;
+    cmd->Flags = 0x0;
+    cmd->Command_ID = pop_cid(cs);
+    cmd->CDW[0] = (sv << 31) | 0x0 | fid;
+    cmd->CDW[1] = iocsci;
+    cmd->CDW[4] = 0b1111111 & uidx;
+    if ((uint64_t)buffer_vaddr == 0x0) {
+        cmd->PRP[0] = 0x0;
+    } else {
+        cmd->PRP[0] = get_paddr((uint64_t)buffer_vaddr);
+    }
+    ring_admin_submission_queue_doorbell(device);
+    return cmd->Command_ID;
+}
+void identify_namespaces(volatile PCI_DEV* device) {
+    uint32_t* namespace_list = (uint32_t*)malloc(0x1000);
+    identify_command(device, namespace_list, 0x2, 0x0, 0x0, 0x0, 0x0, 0x0);
+    for (int i = 0; i < 0x40000000; i++) {
+        asm volatile("nop");
+    }
+    int i = 0;
+    while(namespace_list[i] != 0x0) {
+        IdentifyNamespaceDataStructure* nsds = (IdentifyNamespaceDataStructure*)malloc(0x1000);
+        identify_command(device, nsds, 0x0, namespace_list[i], 0x0, 0x0, 0x0, 0x0);
+        for (int i = 0; i < 0x40000000; i++) {
+            asm volatile("nop");
+        }
+        printhex(nsds->NSZE);
+        i++;
+    }
+}
+
+void configure_io_queues(volatile PCI_DEV* device, int number) {
+    NVME_ConfigSpace* cs = get_nvme_config_space(device);
+    NVME_SubmissionQueueEntry* cmd = cs->ASQ_vaddr + cs->ASQ_tail;
+    cmd->Opcode = 0x9;
+    cmd->Flags = 0x0;
+    cmd->Command_ID = pop_cid(cs);
+    cmd->CDW[0] = 0x7;
+    cmd->CDW[1] = ((number-1) << 16) | (number-1);
+    cmd->CDW[4] = 0x0;
+    ring_admin_submission_queue_doorbell(device);
+    uint16_t cid = cmd->Command_ID;
+    for (int i = 0; i < 0x40000000; i++) {
+        asm volatile("nop");
+    }
+    int i = 0;
+    while (get_nvme_config_space(device)->ACQ_vaddr[i].Command_Identifier != cid) {
+        i++;
+    }
+    uint32_t num = get_nvme_config_space(device)->ACQ_vaddr[i].CDW[0];
+    uint32_t nsqa = (uint16_t)num + 1;
+    uint32_t ncqa = (uint16_t)(num >> 16) + 1;
+    
+}
+
+void test(uint64_t* rsp, uint64_t irq) {
+    
+    print("recieved Interrupt\n");
+    send_EOI();
 }
 
 void init_nvme_controller(volatile PCI_DEV* device) {
@@ -181,19 +260,30 @@ void init_nvme_controller(volatile PCI_DEV* device) {
     NVME_ConfigSpace* nvme_cs = (NVME_ConfigSpace*)malloc(sizeof(NVME_ConfigSpace));
     device->driver_config_space = nvme_cs;
     nvme_cs->CP = (ControllerProperties*)(device->bars[0].base_address);
+    
+    /* 
+    in qemu MSI-X interrupts must be enabled before admin queues are allocated, this is currently a bug???
+    */
+    map_isr(0x23, test);
+    enable_MSIX(device);
 
     disable(device);
     configure_admin_queues(device);
     check_command_sets(device);
     set_arbitration_mechanism(device);
     enable(device);
+    
     init_cid_stack(device);
-    IdentifyControllerDataStructure* icds = identify_command(device, 0x1, 0x0, 0x0, 0x0, 0x0, 0x0);
+    IdentifyControllerDataStructure* icds = (IdentifyControllerDataStructure*)malloc(0x1000);
+    identify_command(device, icds, 0x1, 0x0, 0x0, 0x0, 0x0, 0x0);
     for (int i = 0; i < 0x40000000; i++) {
         asm volatile("nop");
     }
     for (int i = 0; i < 40; i++) {
         put_char(icds->MN[i]);
     }
+    print("\n");
+    //identify_namespaces(device);
+    configure_io_queues(device, 1000);
 }
 

@@ -241,7 +241,33 @@ void init_APIC(void) {
         while(1);
     }
     uint32_t *spurious_vector = (uint32_t *)(APIC_BASE + SPURIOUS_INT_VECTOR_REG_OFFSET);
-    spurious_vector[0] = 0x120;
+    uint32_t *lint0 = (uint32_t*)(APIC_BASE + LVT_LINT0_REG_OFFSET);
+    uint32_t *lint1 = (uint32_t*)(APIC_BASE + LVT_LINT1_REG_OFFSET);
+    *spurious_vector = 0x120;
+    *lint0 &= ~(1 << 16);
+    *lint1 &= ~(1 << 16);
     init_err();
     return;
+}
+
+void check_lapic_irr(uint8_t vector) {
+    uint32_t reg_offset = IRR_OFFSET + ((vector / 32) * 0x10);
+    uint32_t irr_value = *(volatile uint32_t *)(APIC_BASE + reg_offset);
+
+    if (irr_value & (1 << (vector % 32))) {
+        print("LAPIC IRR: Interrupt is pending!\n");
+    } else {
+        print("LAPIC IRR: Interrupt not received.\n");
+    }
+}
+
+void check_lapic_isr(uint8_t vector) {
+    uint32_t reg_offset = ISR_OFFSET + ((vector / 32) * 0x10);
+    uint32_t isr_value = *(volatile uint32_t *)(APIC_BASE + reg_offset);
+
+    if (isr_value & (1 << (vector % 32))) {
+        print("LAPIC ISR: Interrupt vector is currently being serviced!\n");
+    } else {
+        print("LAPIC ISR: Interrupt vector is not active.\n");
+    }
 }

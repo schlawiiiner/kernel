@@ -95,7 +95,7 @@ qemu:
 	@cp bin/mykernel.bin test/boot/
 	@grub-mkrescue -o test/boot/mykernel.iso test 2> /dev/null
 	@qemu-system-x86_64 \
-	-machine q35  \
+	-machine q35 \
 	-m 2G \
 	-smp cores=4 \
 	-device qemu-xhci \
@@ -103,11 +103,13 @@ qemu:
 	-device usb-mouse \
 	-bios /usr/share/ovmf/OVMF.fd \
 	-cdrom test/boot/mykernel.iso \
-	-accel kvm \
+	-enable-kvm \
 	-serial file:serial.log \
 	-cpu max -no-reboot \
+	-monitor stdio \
 	-drive file=ext4_disk.raw,if=none,id=nvme0,format=raw \
-    -device nvme,drive=nvme0,serial=1234
+    -device nvme,drive=nvme0,serial=1234 \
+	-d guest_errors,int
 	@rm -r test 
 
 dissasemble: bin/mykernel.bin

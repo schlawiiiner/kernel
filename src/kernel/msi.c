@@ -1,38 +1,43 @@
 #include "../../src/include/uint.h"
 #include "../../src/include/graphics.h"
 #include "../../src/include/pci.h"
+#include "../../src/include/msi.h"
 
-void __attribute__((optimize("O0"))) enable_MSIX(int device_number) {
-    volatile PCI_DEV* device = &(device_list.devices[device_number]);
+void __attribute__((optimize("O0"))) enable_MSIX(volatile PCI_DEV* device) {
     //check if the device supports MSIX
     if (!(device->msix_cap_offset)) {
-        print("ERROR: device ");
-        printdec(device_number);
-        print(" does not support MSIX");
+        print("ERROR: device does not support MSIX");
         while(1);
     }
     
-    uint32_t* msix_capability = (uint32_t*)((uint64_t)(device->PCI_Config_Space) + device->msix_cap_offset);
-    int bir = (int)(msix_capability[1] & 0b11);
+    PCI_MSIX_CAP* msix_capability = (PCI_MSIX_CAP*)((uint64_t)(device->PCI_Config_Space) + device->msix_cap_offset);
+    int bir = (int)(msix_capability->Table & 0b11);
     if (!(device->bars[bir].present)) {
         print("ERROR: BAR used for MSIX vector table not present");
         while(1);
     }
+    MSIX_TableEntry * table = (MSIX_TableEntry*)(device->bars[bir].base_address + (msix_capability->Table & ~0b11));
+    uint64_t* pba = (uint64_t*)(device->bars[bir].base_address + (msix_capability->Pending_Bit & ~0b11));
+    int table_size = (int)(0x7ff & msix_capability->Message_Control) + 1;
 
-    uint32_t * table = (uint32_t*)(device->bars[bir].base_address + (msix_capability[1] & ~0b11));
-    int table_size = (int)(msix_capability[0] >> 16) + 1;
-
+    int lapic_id = 0x0;
     // fill the vector table
-    for (int i = 0; i < 4*table_size; i+=4) {
-        table[i] = (table[i] & 0xfffff) | 0xfee00000;
-        table[i+1] = 0x0;
-        table[i+2] = (table[i+2] & 0xffffff00) | 0x23;
-        table[i+3] &= ~(uint32_t)0b1;
+    for (int i = 0; i < table_size; i++) {
+        table[i].Message_Address_Low = 0xfee00000 | (lapic_id << 12);
+        table[i].Message_Address_High = 0x0;
+        table[i].Message_Data = 0x23;
+        table[i].Vector_Control = 0x1;
     }
     // enable MSIX
-    msix_capability[0] |= (1 << 31);
+    msix_capability->Message_Control |= (1 << 15);
+
+    for (int i = 0; i < table_size; i++) {
+        table[i].Vector_Control = 0x0;
+    }
     // unmask the function
-    msix_capability[0] &= ~(uint32_t)(1 << 30);
+    msix_capability->Message_Control &= ~(uint16_t)(1 << 14);
+    
+
 }
 
 void __attribute__((optimize("O0"))) dump_MSI_capability(uint32_t* msi_capability) {

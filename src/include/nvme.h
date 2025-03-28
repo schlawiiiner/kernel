@@ -184,6 +184,23 @@ typedef struct __attribute__((packed)) IdentifyControllerDataStructure {
     uint8_t VS[1024];
 } IdentifyControllerDataStructure;
 
+typedef struct __attribute__((packed)) IdentifyNamespaceDataStructure {
+    uint64_t NSZE;
+    uint64_t NCAP;
+    uint64_t NUSE;
+    uint8_t NSFEAT;
+    uint8_t NLBAF;
+    uint8_t FLBAS;
+    uint8_t MC;
+    uint8_t DPC;
+    uint8_t DPS;
+    uint8_t NMIC;
+    uint8_t RESCAP;
+    uint8_t FPI;
+    uint8_t DLFEAT;
+    //TODO: continue
+} IdentifyNamespaceDataStructure;
+
 typedef struct __attribute__((packed)) NVME_ConfigSpace {
     ControllerProperties* CP;
     NVME_SubmissionQueueEntry* ASQ_vaddr;

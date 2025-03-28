@@ -161,6 +161,16 @@ typedef struct __attribute__((packed)) PCI_Power_Management_CAP {
     uint8_t Data;
 } PCI_Power_Management_CAP;
 
+typedef struct __attribute__((packed)) PCI_MSIX_CAP {
+    uint8_t ID;
+    uint8_t next_ptr;
+    uint16_t Message_Control;
+    uint32_t Table;
+    uint32_t Pending_Bit;
+} PCI_MSIX_CAP;
+
+
+
 /*Command Register Bits*/
 #define IO_SPACE                            1 << 0
 #define MEMORY_SPACE                        1 << 1

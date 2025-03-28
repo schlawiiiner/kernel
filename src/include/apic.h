@@ -148,4 +148,6 @@ void apic_err();
 void parse_MADT();
 void send_IPI(int APIC_ID, int vector, int flags);
 void init_aps();
+void check_lapic_irr(uint8_t vector);
+void check_lapic_isr(uint8_t vector);
 #endif
