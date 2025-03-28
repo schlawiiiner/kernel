@@ -11,6 +11,6 @@ typedef struct __attribute__((packed)) MSIX_TableEntry {
     uint32_t Vector_Control;
 } MSIX_TableEntry;
 
-void enable_MSIX(volatile PCI_DEV* device);
+void enable_MSIX(volatile PCI_DEV* device, uint32_t irq);
 void __attribute__((optimize("O0"))) enable_MSI(int device_number);
 #endif

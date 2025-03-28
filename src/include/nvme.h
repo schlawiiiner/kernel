@@ -57,7 +57,7 @@ typedef struct __attribute((packed)) NVME_CompletionQueueEntry {
     uint16_t SQ_Head_Ptr;
     uint16_t SQ_Identifier;
     uint16_t Command_Identifier;
-    uint16_t Status;
+    volatile uint16_t Status;       // volatile needed for polling phase bit
 } NVME_CompletionQueueEntry;
 
 typedef struct __attribute__((packed)) IdentifyControllerDataStructure {
@@ -203,12 +203,15 @@ typedef struct __attribute__((packed)) IdentifyNamespaceDataStructure {
 
 typedef struct __attribute__((packed)) NVME_ConfigSpace {
     ControllerProperties* CP;
+
     NVME_SubmissionQueueEntry* ASQ_vaddr;
     NVME_CompletionQueueEntry* ACQ_vaddr;
+
     int ASQ_size;
     int ACQ_size;
     int ASQ_tail;
     int ACQ_head;
+
     uint16_t* CID_stack;
     int CID_stack_ptr;
     int CID_stack_size;

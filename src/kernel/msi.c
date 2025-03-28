@@ -3,7 +3,7 @@
 #include "../../src/include/pci.h"
 #include "../../src/include/msi.h"
 
-void __attribute__((optimize("O0"))) enable_MSIX(volatile PCI_DEV* device) {
+void __attribute__((optimize("O0"))) enable_MSIX(volatile PCI_DEV* device, uint32_t irq) {
     //check if the device supports MSIX
     if (!(device->msix_cap_offset)) {
         print("ERROR: device does not support MSIX");
@@ -25,7 +25,7 @@ void __attribute__((optimize("O0"))) enable_MSIX(volatile PCI_DEV* device) {
     for (int i = 0; i < table_size; i++) {
         table[i].Message_Address_Low = 0xfee00000 | (lapic_id << 12);
         table[i].Message_Address_High = 0x0;
-        table[i].Message_Data = 0x23;
+        table[i].Message_Data = irq;
         table[i].Vector_Control = 0x1;
     }
     // enable MSIX

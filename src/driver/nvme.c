@@ -22,6 +22,31 @@ void ring_admin_submission_queue_doorbell(volatile PCI_DEV* device) {
     return;
 }
 
+NVME_CompletionQueueEntry* poll_acq(volatile PCI_DEV* device) {
+    NVME_ConfigSpace* cs = get_nvme_config_space(device);
+    int id = cs->ACQ_head;
+    int timeout = 0;
+    while(1) {
+        if (id == 0) {
+            if ((cs->ACQ_vaddr[id].Status & 0x1) != (cs->ACQ_vaddr[id+1].Status & 0x1)) {
+                cs->ACQ_head++;
+                break;
+            }
+        } else {
+            if ((cs->ACQ_vaddr[id].Status & 0x1) == (cs->ACQ_vaddr[id-1].Status & 0x1)) {
+                cs->ACQ_head++;
+                break;
+            }
+        }
+        if (timeout > 0x10000000) {
+            print("ERROR: timeout while polling ACQ");
+            while(1);
+        }
+        timeout++;
+    }
+    return cs->ACQ_vaddr + id;
+}
+
 uint16_t pop_cid(NVME_ConfigSpace* cs) {
     if ((cs->CID_stack_ptr >= cs->CID_stack_size) || (cs->CID_stack_ptr >= 0xffff)) {
         //stack is empty
@@ -203,16 +228,12 @@ uint16_t set_features_command(volatile PCI_DEV* device, void* buffer_vaddr, uint
 void identify_namespaces(volatile PCI_DEV* device) {
     uint32_t* namespace_list = (uint32_t*)malloc(0x1000);
     identify_command(device, namespace_list, 0x2, 0x0, 0x0, 0x0, 0x0, 0x0);
-    for (int i = 0; i < 0x40000000; i++) {
-        asm volatile("nop");
-    }
+    poll_acq(device);
     int i = 0;
     while(namespace_list[i] != 0x0) {
         IdentifyNamespaceDataStructure* nsds = (IdentifyNamespaceDataStructure*)malloc(0x1000);
         identify_command(device, nsds, 0x0, namespace_list[i], 0x0, 0x0, 0x0, 0x0);
-        for (int i = 0; i < 0x40000000; i++) {
-            asm volatile("nop");
-        }
+        poll_acq(device);
         printhex(nsds->NSZE);
         i++;
     }
@@ -228,23 +249,13 @@ void configure_io_queues(volatile PCI_DEV* device, int number) {
     cmd->CDW[1] = ((number-1) << 16) | (number-1);
     cmd->CDW[4] = 0x0;
     ring_admin_submission_queue_doorbell(device);
-    uint16_t cid = cmd->Command_ID;
-    for (int i = 0; i < 0x40000000; i++) {
-        asm volatile("nop");
-    }
-    int i = 0;
-    while (get_nvme_config_space(device)->ACQ_vaddr[i].Command_Identifier != cid) {
-        i++;
-    }
-    uint32_t num = get_nvme_config_space(device)->ACQ_vaddr[i].CDW[0];
+    uint32_t num = poll_acq(device)->CDW[0];
     uint32_t nsqa = (uint16_t)num + 1;
     uint32_t ncqa = (uint16_t)(num >> 16) + 1;
     
 }
 
-void test(uint64_t* rsp, uint64_t irq) {
-    
-    print("recieved Interrupt\n");
+void nop(uint64_t* rsp, uint64_t irq) {
     send_EOI();
 }
 
@@ -261,12 +272,11 @@ void init_nvme_controller(volatile PCI_DEV* device) {
     device->driver_config_space = nvme_cs;
     nvme_cs->CP = (ControllerProperties*)(device->bars[0].base_address);
     
-    /* 
-    in qemu MSI-X interrupts must be enabled before admin queues are allocated, this is currently a bug???
-    */
-    map_isr(0x23, test);
-    enable_MSIX(device);
+    // in qemu MSI-X interrupts must be enabled before admin queues are allocated, this is currently a bug???
+    map_isr(0x23, nop);
+    enable_MSIX(device, 0x23);
 
+    // reset controller
     disable(device);
     configure_admin_queues(device);
     check_command_sets(device);
@@ -276,14 +286,12 @@ void init_nvme_controller(volatile PCI_DEV* device) {
     init_cid_stack(device);
     IdentifyControllerDataStructure* icds = (IdentifyControllerDataStructure*)malloc(0x1000);
     identify_command(device, icds, 0x1, 0x0, 0x0, 0x0, 0x0, 0x0);
-    for (int i = 0; i < 0x40000000; i++) {
-        asm volatile("nop");
-    }
+    poll_acq(device);
     for (int i = 0; i < 40; i++) {
         put_char(icds->MN[i]);
     }
     print("\n");
-    //identify_namespaces(device);
-    configure_io_queues(device, 1000);
+    identify_namespaces(device);
+    configure_io_queues(device, 0x10);
 }
 
