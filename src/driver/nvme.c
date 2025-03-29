@@ -6,6 +6,8 @@
 #include "../../src/include/apic.h"
 #include "../../src/include/interrupts.h"
 
+volatile NVME_IRQ_Mapping* irq_mapping = (NVME_IRQ_Mapping*)0x0;
+
 inline ControllerProperties* get_controller_properties(volatile PCI_DEV* device) {
     return ((NVME_ConfigSpace*)(device->driver_config_space))->CP;
 }
@@ -332,8 +334,49 @@ void set_io_command_set(volatile PCI_DEV* device) {
     cp->CC = (cp->CC & ~(uint32_t)(0b1111 << 16)) | 0b0110 << 16;
 }
 
-void nop(uint64_t* rsp, uint64_t irq) {
+void nop(uint64_t irq, uint64_t* rsp) {
     send_EOI();
+}
+
+void isr(uint64_t irq, uint64_t* rsp) {
+    if (!irq_mapping) {
+        print("ERROR: Recieved Interrupt that is not mapped yet");
+        while(1);
+    }
+    volatile NVME_IRQ_Mapping* map = irq_mapping;
+    volatile PCI_DEV* device;
+    while(1) {
+        if (irq == map->irq) {
+            device = map->device;
+            break;
+        } else {
+            if (!map->next) {
+                print("ERROR: Recieved Interrupt that is not mapped yet");
+                while(1);
+            } else {
+                map = map->next;
+            }
+        }
+    }
+    send_EOI();
+}
+
+void enable_interrupts(volatile PCI_DEV* device) {
+    if (!device->msix_cap_offset) {
+        print("ERROR: Device does not support MSI-X");
+        while(1);
+    }
+    uint8_t irq = request_irq_for_mapping();
+    if (!irq) {
+        print("ERROR: Failed to request irq");
+    }
+    map_isr(irq, isr);
+    enable_MSIX(device, irq);
+
+    irq_mapping = (NVME_IRQ_Mapping*)malloc(sizeof(NVME_IRQ_Mapping));
+    irq_mapping->device = device;
+    irq_mapping->irq = irq;
+    irq_mapping->next = 0x0;
 }
 
 void init_nvme_controller(volatile PCI_DEV* device) {
@@ -350,9 +393,8 @@ void init_nvme_controller(volatile PCI_DEV* device) {
     nvme_cs->CP = (ControllerProperties*)(device->bars[0].base_address);
     
     // in qemu MSI-X interrupts must be enabled before admin queues are allocated, this is currently a bug???
-    map_isr(0x23, nop);
-    enable_MSIX(device, 0x23);
-
+    enable_interrupts(device);
+    
     // reset controller
     disable(device);
     configure_admin_queues(device);

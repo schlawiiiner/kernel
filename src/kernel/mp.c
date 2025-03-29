@@ -83,7 +83,7 @@ void remove_task(Task* task) {
     __atomic_store_n(&task_queue.lock, 0, __ATOMIC_RELEASE);
 }
 
-void __attribute__((optimize("O1"))) task_switcher(uint64_t* rsp, uint64_t irq) {
+void __attribute__((optimize("O1"))) task_switcher(uint64_t irq, uint64_t* rsp) {
     Task *task = dequeue_task();
     if ((Task*)0x0 == task) {
         return;

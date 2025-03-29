@@ -18,12 +18,13 @@ typedef struct __attribute__((packed)) GateDescriptor {
 
 extern GateDescriptor IDT[256];
 
-typedef void (*func_ptr_t)(uint64_t*, uint64_t);
+typedef void (*func_ptr_t)(uint64_t, uint64_t*);
 
 extern func_ptr_t irq_handlers[256];
 
-void default_handler_func(uint64_t* rsp, uint64_t irq);
-void irq_handler(uint64_t* rsp,uint64_t irq);
+void default_handler_func(uint64_t irq, uint64_t* rsp);
+void irq_handler(uint64_t irq ,uint64_t* rsp);
 void map_isr(uint8_t irq, func_ptr_t function);
 void init_default_handler();
+uint8_t request_irq_for_mapping();
 #endif

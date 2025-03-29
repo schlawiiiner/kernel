@@ -217,5 +217,14 @@ typedef struct __attribute__((packed)) NVME_ConfigSpace {
     int CID_stack_size;
 } NVME_ConfigSpace;
 
+typedef struct NVME_IRQ_Mapping NVME_IRQ_Mapping;
+
+struct __attribute__((packed)) NVME_IRQ_Mapping {
+    volatile PCI_DEV* device;
+    uint32_t irq;
+    uint32_t reserved[3];       //ensure that struct is 32 bytes large
+    volatile NVME_IRQ_Mapping* next;
+};
+
 void init_nvme_controller(volatile PCI_DEV* device);
 #endif

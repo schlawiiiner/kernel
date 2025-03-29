@@ -5,7 +5,7 @@
 #include "../../src/include/ioapic.h"
 #include "../../src/include/io.h"
 
-void irq_handler(uint64_t* rsp, uint64_t irq) {
+void irq_handler(uint64_t irq, uint64_t* rsp) {
     printdec(irq);
     if(irq == 0x22) {
         apic_err();
@@ -20,7 +20,7 @@ void irq_handler(uint64_t* rsp, uint64_t irq) {
     send_EOI();
 }
 
-void default_handler_func(uint64_t* rsp, uint64_t irq) {
+void default_handler_func(uint64_t irq, uint64_t* rsp) {
     irq_probe = irq;
     print(".");
     send_EOI();
@@ -31,8 +31,22 @@ void init_default_handler() {
         irq_handlers[i] = (func_ptr_t)default_handler_func;
     }
 }
+// on success returns a value greater or equal to 32, otherwise 0x0
+uint8_t request_irq_for_mapping() {
+    for (int i = 32; i < 0x100; i++) {
+        if (irq_handlers[i] == default_handler_func) {
+            return (uint8_t)i;
+        }
+    }
+    return (uint8_t)0x0;
+}
+
 //mapping a function to an irq that corresponds to an cpu exception has no effect
 void map_isr(uint8_t irq, func_ptr_t function) {
+    if (irq_handlers[irq] != default_handler_func) {
+        print("ERROR: IRQ already mapped");
+        while(1);
+    }
     irq_handlers[irq] = function;
 }
 
