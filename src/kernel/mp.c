@@ -10,7 +10,7 @@ volatile CPUs* cpus __attribute__((section(".sysvar")));
 TaskQueue task_queue __attribute__((section(".sysvar")));
 
 volatile CPU* fetch_cpu_data(uint64_t apic_id) {
-    volatile CPU* cpu = &cpus[apic_id];
+    volatile CPU* cpu = (volatile CPU*)&cpus[apic_id];
     if (cpu->APIC_ID != apic_id) {
         for (int i = 0; i < cpus->number; i++) {
             if (cpus->cpu[i].APIC_ID == apic_id) {

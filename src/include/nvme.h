@@ -7,6 +7,11 @@
 #define SUBMISSION_QUEUE_ENTRY_SIZE     64
 #define COMPLETION_QUEUE_ENTRY_SIZE     16
 
+typedef struct __attribute__((packed)) Doorbell {
+    uint32_t SQyTDBL;
+    uint32_t CQyHDBL;
+} Doorbell;
+
 typedef struct __attribute__((packed)) ControllerProperties {
     volatile uint64_t CAP;
     volatile uint32_t VS;
@@ -39,6 +44,7 @@ typedef struct __attribute__((packed)) ControllerProperties {
     volatile uint32_t PMRMSCL;
     volatile uint32_t PMRMSCU;
     volatile uint32_t Reserved2[121];
+    volatile Doorbell DBLR[];
 } ControllerProperties;
 
 typedef struct __attribute__((packed)) NVME_SubmissionQueueEntry {
@@ -46,7 +52,8 @@ typedef struct __attribute__((packed)) NVME_SubmissionQueueEntry {
     uint8_t Flags;
     uint16_t Command_ID;
     uint32_t NSID;
-    uint64_t Reserved;
+    uint32_t CDW2;
+    uint32_t CDW3;
     uint64_t Metadata;
     uint64_t PRP[2];
     uint32_t CDW[6];
@@ -198,23 +205,53 @@ typedef struct __attribute__((packed)) IdentifyNamespaceDataStructure {
     uint8_t RESCAP;
     uint8_t FPI;
     uint8_t DLFEAT;
-    //TODO: continue
+    uint16_t NAWUN;
+    uint16_t NAWUMPF;
+    uint16_t NACWU;
+    uint16_t NABSN;
+    uint16_t NABO;
+    uint16_t NABSPF;
+    uint16_t NOIOB;
+    uint64_t NVMCAP[2];
+    uint16_t NPWG;
+    uint16_t NPWA;
+    uint16_t NPDG;
+    uint16_t NPDA;
+    uint16_t NOWS;
+    uint16_t MSSRL;
+    uint32_t MCL;
+    uint8_t MSRC;
+    uint8_t KPIOS;
+    uint8_t NULBAF;
+    uint8_t Reserved;
+    uint32_t KPIODAAG;
+    uint32_t Reserved2;
+    uint32_t ANAGRPID;
+    uint8_t Reserved3[3];
+    uint8_t NSATTR;
+    uint16_t NVMSETID;
+    uint16_t ENDGID;
+    uint32_t NGUID;
+    uint64_t EUI64;
+    uint32_t LBAFn[64];
+    uint64_t VS[464];
 } IdentifyNamespaceDataStructure;
+
+typedef struct __attribute__((packed)) Queue {
+    NVME_SubmissionQueueEntry* SQE;
+    NVME_CompletionQueueEntry* CQE;
+    int SQS;
+    int CQS;
+    int SQT;
+    int CQH;
+} Queue;
 
 typedef struct __attribute__((packed)) NVME_ConfigSpace {
     ControllerProperties* CP;
-
-    NVME_SubmissionQueueEntry* ASQ_vaddr;
-    NVME_CompletionQueueEntry* ACQ_vaddr;
-
-    int ASQ_size;
-    int ACQ_size;
-    int ASQ_tail;
-    int ACQ_head;
-
     uint16_t* CID_stack;
     int CID_stack_ptr;
     int CID_stack_size;
+    Queue Queues[2];
 } NVME_ConfigSpace;
 
 typedef struct NVME_IRQ_Mapping NVME_IRQ_Mapping;
@@ -226,5 +263,16 @@ struct __attribute__((packed)) NVME_IRQ_Mapping {
     volatile NVME_IRQ_Mapping* next;
 };
 
+static inline ControllerProperties* get_controller_properties(volatile PCI_DEV* device) {
+    return ((NVME_ConfigSpace*)(device->driver_config_space))->CP;
+}
+
+static inline NVME_ConfigSpace* get_nvme_config_space(volatile PCI_DEV* device) {
+    return (NVME_ConfigSpace*)(device->driver_config_space);
+}
+
 void init_nvme_controller(volatile PCI_DEV* device);
+void test_read(volatile PCI_DEV* device);
+uint16_t pop_cid(NVME_ConfigSpace* cs);
+void ring_submission_queue_tail_doorbell(volatile PCI_DEV* device, int y);
 #endif

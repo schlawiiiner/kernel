@@ -1,13 +1,13 @@
 MAX_RAMSIZE = 0x400000000
-SCREEN_X = 1024
-SCREEN_Y = 600
+SCREEN_X = 1920
+SCREEN_Y = 1080
 
 LDFLAGS = --oformat elf64-x86-64
 NASMFLAGS = -felf64 -DMAX_RAMSIZE=$(MAX_RAMSIZE) -DSCREEN_X=$(SCREEN_X) -DSCREEN_Y=$(SCREEN_Y)
 GCCFLAGS = -mcmodel=large -nostdlib -fno-builtin -fno-exceptions -ffreestanding -mno-red-zone -fno-leading-underscore -Wunused-result -DMAX_RAMSIZE=$(MAX_RAMSIZE)
 INCLUDES = -I$(PWD)
 
-objects = bin/loader.o bin/kernel.o bin/interrupts.o bin/graphics.o bin/font.o bin/serial_port.o bin/acpi.o bin/apic.o bin/ioapic.o bin/pci.o bin/msi.o bin/utils.o bin/gdt.o bin/memory.o bin/vmem.o bin/pmem.o bin/mmap.o bin/mp.o bin/slab.o bin/nvme.o
+objects = bin/loader.o bin/kernel.o bin/interrupts.o bin/graphics.o bin/font.o bin/serial_port.o bin/acpi.o bin/apic.o bin/ioapic.o bin/pci.o bin/msi.o bin/utils.o bin/gdt.o bin/memory.o bin/vmem.o bin/pmem.o bin/mmap.o bin/mp.o bin/slab.o bin/nvme.o bin/io.o
 asm_files = src/boot/check.asm src/boot/interrupts.asm src/boot/loader.asm src/boot/multiboot2.asm src/boot/paging.asm src/boot/apic.asm src/boot/mp.asm src/boot/user.asm
 
 bin/kernel.o: src/kernel/kernel.c
@@ -64,9 +64,11 @@ bin/mp.o: src/kernel/mp.c
 bin/slab.o: src/mm/slab.c 
 	@gcc $(GCCFLAGS) $(INCLUDES) -O2 -o $@ -c $<
 
-bin/nvme.o: src/driver/nvme.c 
-	@gcc $(GCCFLAGS) $(INCLUDES) -O2 -o $@ -c $<
+bin/nvme.o: src/driver/nvme/nvme.c 
+	@gcc $(GCCFLAGS) $(INCLUDES) -O2 -c $< -o $@
 
+bin/io.o:  src/driver/nvme/io.c
+	@gcc $(GCCFLAGS) $(INCLUDES) -O2 -c $< -o $@
 
 bin/loader.o: $(asm_files)
 	@nasm $(NASMFLAGS) src/boot/loader.asm -o $@ 
@@ -86,6 +88,11 @@ install: bin/mykernel.bin
 
 clean:
 	@cd bin && rm *
+
+disk:
+	@qemu-img create -f raw disk.img 1G
+	@sudo parted disk.img mklabel gpt
+	@sudo parted disk.img mkpart primary ext4 50% 50%
 
 qemu:
 	@make -s build
@@ -107,7 +114,7 @@ qemu:
 	-serial file:serial.log \
 	-cpu max -no-reboot \
 	-monitor stdio \
-	-drive file=ext4_disk.raw,if=none,id=nvme0,format=raw \
+	-drive file=disk.img,if=none,id=nvme0,format=raw \
     -device nvme,drive=nvme0,serial=1234 \
 	-trace enable=___
 	@rm -r test 
