@@ -109,7 +109,7 @@ qemu:
 	-monitor stdio \
 	-drive file=ext4_disk.raw,if=none,id=nvme0,format=raw \
     -device nvme,drive=nvme0,serial=1234 \
-	-d guest_errors,int
+	-trace enable=*nvme*
 	@rm -r test 
 
 dissasemble: bin/mykernel.bin
