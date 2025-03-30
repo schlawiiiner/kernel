@@ -71,6 +71,11 @@ void put_char(char character) {
     }
 }
 
+void put_chars(char* string, int n) {
+    for (int i = 0; i < n; i++) {
+        put_char(string[i]);
+    }
+}
 
 void print(char* string) {
     set_lock();

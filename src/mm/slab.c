@@ -92,9 +92,15 @@ void allocate_new_slab(uint64_t chunk_size, uint32_t size) {
     }
 }
 uint64_t malloc(uint64_t size) {
-    int highestBit = 32 - __builtin_clz(size); 
-    size = (uint64_t)1 << highestBit;
-    int index = highestBit - 2;
+    int highestBit = 31 - __builtin_clz(size); 
+    int index;
+    if (((uint64_t)1 << highestBit) < size) {
+        size = (uint64_t)1 << (highestBit+1);
+        index = highestBit - 1;
+    } else {
+        size = (uint64_t)1 << (highestBit);
+        index = highestBit - 2;
+    }
     if (index < SLAB_BUFFER_SIZE) {
         Slab* slab = &slab_buffer[index];
         if (slab->slab_size == 0) {
@@ -119,9 +125,15 @@ uint64_t malloc(uint64_t size) {
 }
 
 void free(uint64_t addr, uint64_t size) {
-    int highestBit = 32 - __builtin_clz(size); 
-    size = (uint64_t)1 << (highestBit - 1);
-    int index = highestBit - 3;
+    int highestBit = 31 - __builtin_clz(size); 
+    int index;
+    if (((uint64_t)1 << highestBit) < size) {
+        size = (uint64_t)1 << (highestBit+1);
+        index = highestBit - 1;
+    } else {
+        size = (uint64_t)1 << (highestBit);
+        index = highestBit - 2;
+    }
     if (index < SLAB_BUFFER_SIZE) {
         Slab* slab = &slab_buffer[index];
         if (slab->slab_size == 0) {

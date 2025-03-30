@@ -11,6 +11,7 @@ volatile NVME_IRQ_Mapping* irq_mapping = (NVME_IRQ_Mapping*)0x0;
 void check_completion_status(NVME_CompletionQueueEntry* entry) {
     if ((entry->Status >> 1) != 0x0) {
         print("ERROR: Error Code in completion status");
+        printhex(entry->Status >>1);
         //TODO: recover if possible
         while(1);
     }
@@ -25,9 +26,9 @@ void ring_submission_queue_tail_doorbell(volatile PCI_DEV* device, int y) {
     return;
 }
 
-NVME_CompletionQueueEntry* poll_acq(volatile PCI_DEV* device) {
+NVME_CompletionQueueEntry* poll_cq(volatile PCI_DEV* device, int y) {
     NVME_ConfigSpace* cs = get_nvme_config_space(device);
-    Queue* q = &cs->Queues[0];
+    Queue* q = &cs->Queues[y];
     int id = q->CQH;
     int timeout = 0;
     while(1) {
@@ -193,6 +194,33 @@ void init_cid_stack(volatile PCI_DEV* device) {
     return;
 }
 
+void set_prp(NVME_SubmissionQueueEntry* cmd, void* buffer, uint32_t size) {
+    if (size <= PAGE_SIZE_) {
+        cmd->PRP[0] = get_paddr((uint64_t)buffer);
+        cmd->PRP[1] = 0x0;
+    } else if (size <= 2*PAGE_SIZE_) {
+        cmd->PRP[0] = get_paddr((uint64_t)buffer);
+        cmd->PRP[1] = get_paddr((uint64_t)buffer + PAGE_SIZE_);
+    } else {
+        uint64_t n_pages = size/PAGE_SIZE_;
+        if (n_pages*PAGE_SIZE_ == size) {
+            n_pages--;
+        }
+        if (n_pages > PAGE_SIZE_/sizeof(uint64_t)) {
+            print("ERROR: Current implementation does not support PRP list crossing multiple pages");
+            while(1);
+        }
+        uint64_t* prp_list = (uint64_t*)malloc(0x1000);
+        memset((uint64_t)prp_list, 0x0, 0x1000);
+        for (int i = 0; i < n_pages; i++) {
+            prp_list[i] = get_paddr((uint64_t)buffer + (1 + i)*PAGE_SIZE_);
+        }
+        cmd->PRP[0] = get_paddr((uint64_t)buffer);
+        cmd->PRP[1] = get_paddr((uint64_t)prp_list);
+    }
+}
+
+
 uint16_t identify_command(volatile PCI_DEV* device, void* buffer_vaddr, uint8_t cns, uint32_t nsid, uint16_t cntid, uint16_t csi, uint16_t cnssid, uint8_t uidx) {
     NVME_ConfigSpace* cs = get_nvme_config_space(device);
     NVME_SubmissionQueueEntry* cmd = cs->Queues[0].SQE + cs->Queues[0].SQT;
@@ -205,8 +233,10 @@ uint16_t identify_command(volatile PCI_DEV* device, void* buffer_vaddr, uint8_t 
     cmd->CDW[4] = 0b1111111 & uidx;
     if ((uint64_t)buffer_vaddr == 0x0) {
         cmd->PRP[0] = 0x0;
+        cmd->PRP[1] = 0x0;
     } else {
         cmd->PRP[0] = get_paddr((uint64_t)buffer_vaddr);
+        cmd->PRP[1] = 0x0;
     }
     ring_submission_queue_tail_doorbell(device, 0x0);
     return cmd->Command_ID;
@@ -259,14 +289,16 @@ void create_iosq_command(volatile PCI_DEV* device, void* buffer, uint16_t qsize,
 void identify_namespaces(volatile PCI_DEV* device) {
     uint32_t* namespace_list = (uint32_t*)malloc(0x1000);
     identify_command(device, namespace_list, 0x2, 0x0, 0x0, 0x0, 0x0, 0x0);
-    check_completion_status(poll_acq(device));
+    check_completion_status(poll_cq(device, 0));
     int i = 0;
     while(namespace_list[i] != 0x0) {
         IdentifyNamespaceDataStructure* nsds = (IdentifyNamespaceDataStructure*)malloc(0x1000);
         identify_command(device, nsds, 0x0, namespace_list[i], 0x0, 0x0, 0x0, 0x0);
-        check_completion_status(poll_acq(device));
+        check_completion_status(poll_cq(device, 0));
+        free((uint64_t)nsds, 0x1000);
         i++;
     }
+    free((uint64_t)namespace_list, 0x1000);
 }
 
 
@@ -280,7 +312,7 @@ void configure_io_queues(volatile PCI_DEV* device, int number) {
     cmd->CDW[1] = ((number-1) << 16) | (number-1);
     cmd->CDW[4] = 0x0;
     ring_submission_queue_tail_doorbell(device, 0x0);
-    NVME_CompletionQueueEntry* entry = poll_acq(device);
+    NVME_CompletionQueueEntry* entry = poll_cq(device, 0);
     check_completion_status(entry);
     uint32_t num = entry->CDW[0];
     uint32_t nsqa = (uint16_t)num + 1;
@@ -294,7 +326,7 @@ void configure_io_queues(volatile PCI_DEV* device, int number) {
     cs->Queues[1].CQS = (int)(0x1000/sizeof(NVME_CompletionQueueEntry));
     cs->Queues[1].CQH = 0;
     create_iocq_command(device, (void*)buffer, 0x1000, 1, 1);
-    check_completion_status(poll_acq(device));
+    check_completion_status(poll_cq(device, 0));
 
     //create IOSQ
     uint64_t buffer1 = malloc(0x1000);
@@ -304,7 +336,7 @@ void configure_io_queues(volatile PCI_DEV* device, int number) {
     cs->Queues[1].SQT = 0;
 
     create_iosq_command(device, (void*)buffer1, 0x1000, 1, 1);
-    check_completion_status(poll_acq(device));
+    check_completion_status(poll_cq(device, 0));
 }
 
 void set_io_command_set(volatile PCI_DEV* device) {
@@ -312,14 +344,14 @@ void set_io_command_set(volatile PCI_DEV* device) {
     if ((cp->CAP >> 43) & 0x1) {
         uint64_t buffer = malloc(0x1000);
         identify_command(device, (void*)buffer, 0x1C, 0x0, 0xffff, 0x0, 0x0, 0x0);
-        check_completion_status(poll_acq(device));
+        check_completion_status(poll_cq(device, 0));
         uint64_t* command_set_data_struct = (uint64_t*)buffer;
         //TODO: select command set first one is choosen
         set_features_command(device, 0x0 ,0x19, 0x0, 0x0, 0x0);
-        check_completion_status(poll_acq(device));
+        check_completion_status(poll_cq(device, 0));
         uint64_t buffer2 = malloc(0x1000);
         identify_command(device, (void*)buffer2, 0x7, 0x0, 0x0, 0x0, 0x0, 0x0);
-        check_completion_status(poll_acq(device));
+        check_completion_status(poll_cq(device, 0));
         uint32_t* nsid_list = (uint32_t*)buffer2;
         for (int i = 0; i < 1024; i++) {
             if (nsid_list[i] == 0x0) {
@@ -327,9 +359,12 @@ void set_io_command_set(volatile PCI_DEV* device) {
             }
             uint64_t buffer3 = malloc(0x1000);
             identify_command(device, (void*)buffer3, 0x0, nsid_list[i], 0x0, 0x0, 0x0, 0x0);
-            check_completion_status(poll_acq(device));
+            check_completion_status(poll_cq(device, 0));
             IdentifyNamespaceDataStructure* insds = (IdentifyNamespaceDataStructure*)buffer3;
+            free(buffer3, 0x1000);
         }
+        free(buffer, 0x1000);
+        free(buffer2, 0x1000);
     }
     // set queue size entry
     cp->CC = (cp->CC & ~(uint32_t)(0b1111 << 20)) | 0b0100 << 20;
@@ -407,10 +442,8 @@ void init_nvme_controller(volatile PCI_DEV* device) {
     init_cid_stack(device);
     IdentifyControllerDataStructure* icds = (IdentifyControllerDataStructure*)malloc(0x1000);
     identify_command(device, icds, 0x1, 0x0, 0x0, 0x0, 0x0, 0x0);
-    check_completion_status(poll_acq(device));
-    for (int i = 0; i < 40; i++) {
-        put_char(icds->MN[i]);
-    }
+    check_completion_status(poll_cq(device, 0));
+    put_chars(icds->MN, 40);
     print("\n");
     set_io_command_set(device);
     identify_namespaces(device);

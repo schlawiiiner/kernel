@@ -273,6 +273,9 @@ static inline NVME_ConfigSpace* get_nvme_config_space(volatile PCI_DEV* device) 
 
 void init_nvme_controller(volatile PCI_DEV* device);
 void test_read(volatile PCI_DEV* device);
+void set_prp(NVME_SubmissionQueueEntry* cmd, void* buffer, uint32_t size);
 uint16_t pop_cid(NVME_ConfigSpace* cs);
 void ring_submission_queue_tail_doorbell(volatile PCI_DEV* device, int y);
+void check_completion_status(NVME_CompletionQueueEntry* entry);
+NVME_CompletionQueueEntry* poll_cq(volatile PCI_DEV* device, int y);
 #endif
