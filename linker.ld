@@ -25,6 +25,7 @@ SECTIONS
     .bss :
     {
         *(COMMON)
+        *(.irq_table)
         *(.bss)
     }
     .info : 

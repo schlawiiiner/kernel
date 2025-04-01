@@ -117,8 +117,8 @@ magic:
     resb 4
 boot_info:
     resb 4
-irq_handlers:
-    resb 4096
+
+
 
 section .note.GNU-stack
 ; This gets rid of the following warning message

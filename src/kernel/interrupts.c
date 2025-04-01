@@ -30,9 +30,6 @@ void default_handler_func(uint64_t* rsp, uint64_t irq) {
 
 void init_default_handler() {
     for (int i = 0; i < IRQ_TOTAL_NUMBER; i++) {
-        irq_handlers[i] = (func_ptr_t)default_handler_func;
-    }
-    for (int i = 0; i < IRQ_TOTAL_NUMBER; i++) {
         if (i < 31) {
             irq_map[i].type = IRQ_EXCEPTION;
         }
