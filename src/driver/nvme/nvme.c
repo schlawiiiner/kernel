@@ -371,10 +371,6 @@ void set_io_command_set(volatile PCI_DEV* device) {
     cp->CC = (cp->CC & ~(uint32_t)(0b1111 << 16)) | 0b0110 << 16;
 }
 
-void nop(uint64_t irq, uint64_t* rsp) {
-    send_EOI();
-}
-
 void isr(uint64_t irq, uint64_t* rsp) {
     if (!irq_mapping) {
         print("ERROR: Recieved Interrupt that is not mapped yet");

@@ -70,7 +70,15 @@ typedef struct __attribute__((packed)) CPUs {
     CPU cpu[];
 } CPUs;
 
+static inline void cpuid(int code, int subleaf, uint32_t *a, uint32_t *b, uint32_t *c, uint32_t *d) {
+    asm volatile("cpuid"
+                 : "=a"(*a), "=b"(*b), "=c"(*c), "=d"(*d)
+                 : "a"(code), "c"(subleaf));
+}
+
 void init_cpus(void);
 void switch_cpu(int cpu_number);
+void assign_per_core_struct(uint32_t apic_id);
+void enable_cpu_features(void);
 extern volatile CPUs* cpus;
 #endif

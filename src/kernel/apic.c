@@ -213,6 +213,7 @@ void __attribute__((optimize("O0"))) init_aps(void) {
 }
 
 void init_APIC(void) {
+    enable_cpu_features();
     map_to(APIC_BASE, APIC_BASE, PAGE_SIZE, 0x0);
     uint32_t err_code = enable_APIC();
     if (err_code != 0x0) {
@@ -228,18 +229,7 @@ void init_APIC(void) {
     remap_APIC_registers((uint32_t)APIC_BASE);
     uint32_t* id = (uint32_t*)(APIC_BASE+LOCAL_APIC_ID_REG_OFFSET);
     uint8_t apic_id = (uint8_t)(id[0] >> 24);
-    int not_found = 1;
-    for (int i = 0; i < cpus->number; i++) {
-        if (apic_id == cpus->cpu[i].APIC_ID) {
-            cpus->cpu[i].Initialized = 0x1;
-            not_found = 0;
-            break;
-        }
-    }
-    if (not_found) {
-        print("invalid apic_id");
-        while(1);
-    }
+    assign_per_core_struct(apic_id);
     uint32_t *spurious_vector = (uint32_t *)(APIC_BASE + SPURIOUS_INT_VECTOR_REG_OFFSET);
     uint32_t *lint0 = (uint32_t*)(APIC_BASE + LVT_LINT0_REG_OFFSET);
     uint32_t *lint1 = (uint32_t*)(APIC_BASE + LVT_LINT1_REG_OFFSET);

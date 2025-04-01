@@ -129,6 +129,47 @@ void init_task_switcher() {
     task_queue.enqueue = (Task*)0x0;
 }
 
+void enable_cpu_features(void) {
+    uint32_t eax, ebx, ecx, edx;
+    cpuid(0x07, 0x00, &eax, &ebx, &ecx, &edx);
+    if (ebx & (1 << 0)) {
+        /*FSGSBASE*/
+        uint64_t cr4;
+        __asm__ volatile ("mov %%cr4, %0" : "=r"(cr4));
+        cr4 |= (1 << 16);
+        __asm__ volatile ("mov %0, %%cr4" :: "r"(cr4));
+    } else {
+        print("ERROR: FSGSBASE not supported\n");
+        while(1);
+    }
+}
+
+CPU* read_per_core_struct(void) {
+    CPU* cpu_struct;
+    asm volatile ("wrgsbase %0": "=r"(cpu_struct));
+    return cpu_struct;
+}
+
+uint8_t get_apic_id(void) {
+    CPU* cpu_struct = read_per_core_struct();
+    return cpu_struct->APIC_ID;
+}
+
+void assign_per_core_struct(uint32_t apic_id) {
+    int not_found = 1;
+    for (int i = 0; i < cpus->number; i++) {
+        if (apic_id == cpus->cpu[i].APIC_ID) {
+            cpus->cpu[i].Initialized = 0x1;
+            asm volatile ("wrgsbase %0" :: "r"(&(cpus->cpu[i])));
+            not_found = 0;
+            break;
+        }
+    }
+    if (not_found) {
+        print("invalid apic_id");
+        while(1);
+    }
+}
 
 void init_cpus() {
     if (!(acpi.Flags & 0b001)) {
