@@ -5,7 +5,9 @@
 #include "../../src/include/ioapic.h"
 #include "../../src/include/io.h"
 
-void irq_handler(uint64_t irq, uint64_t* rsp) {
+IRQ_Map irq_map[IRQ_TOTAL_NUMBER]  __attribute__((section(".sysvar")));
+
+void irq_handler(uint64_t* rsp, uint64_t irq) {
     printdec(irq);
     if(irq == 0x22) {
         apic_err();
@@ -20,20 +22,25 @@ void irq_handler(uint64_t irq, uint64_t* rsp) {
     send_EOI();
 }
 
-void default_handler_func(uint64_t irq, uint64_t* rsp) {
+void default_handler_func(uint64_t* rsp, uint64_t irq) {
     irq_probe = irq;
     print(".");
     send_EOI();
 }
 
 void init_default_handler() {
-    for (int i = 0; i < 256; i++) {
+    for (int i = 0; i < IRQ_TOTAL_NUMBER; i++) {
         irq_handlers[i] = (func_ptr_t)default_handler_func;
+    }
+    for (int i = 0; i < IRQ_TOTAL_NUMBER; i++) {
+        if (i < 31) {
+            irq_map[i].type = IRQ_EXCEPTION;
+        }
     }
 }
 // on success returns a value greater or equal to 32, otherwise 0x0
 uint8_t request_irq_for_mapping() {
-    for (int i = 32; i < 0x100; i++) {
+    for (int i = 32; i < IRQ_TOTAL_NUMBER; i++) {
         if (irq_handlers[i] == default_handler_func) {
             return (uint8_t)i;
         }
@@ -190,7 +197,9 @@ void control_protection_exception(uint64_t* rsp) {
     kernel_panic("\n CONTROL PROTECTION OVERRUN\n", 1, rsp);
 }
 
-/*RESERVED*/
+void intel_reserved(uint64_t* rsp) {
+    kernel_panic("\n INTEL RESERVED INTERRUPT\n", 0, rsp);
+}
 
 void hypervisor_injection_exception(uint64_t* rsp) {
     kernel_panic("\n HYPERVISOR INJECTION EXCEPTION\n", 0, rsp);

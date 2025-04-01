@@ -14,6 +14,7 @@ extern segment_not_present
 extern stack_segment_fault
 extern general_protection_fault
 extern page_fault
+extern intel_reserved
 extern x87_floating_point_exception
 extern alignment_check
 extern machine_check
@@ -338,13 +339,22 @@ int14:
     iretq
 int15:
     cli
-	cld
-	PUSH_ALL_REGS
-	mov rdi, 15
-	mov rax, [irq_handlers+120]
-	call rax
-	POP_ALL_REGS
-	iretq
+    cld
+    PUSH_ALL_REGS
+    mov rdi, rsp
+	mov rax, rsp
+	and rax, 0xf
+	cmp rax, 0
+	jnz .align_stack
+    call intel_reserved
+	jmp .end
+.align_stack:
+	sub rsp, 8
+	call intel_reserved
+	add rsp, 8
+.end:
+    POP_ALL_REGS
+    iretq
 int16:
     cli
     cld
@@ -364,7 +374,7 @@ int16:
     POP_ALL_REGS
     iretq
 int17:
-        cli
+    cli
     cld
     PUSH_ALL_REGS
     mov rdi, rsp
@@ -382,7 +392,7 @@ int17:
     POP_ALL_REGS
     iretq
 int18:
-        cli
+    cli
     cld
     PUSH_ALL_REGS
     mov rdi, rsp
@@ -400,7 +410,7 @@ int18:
     POP_ALL_REGS
     iretq
 int19:
-        cli
+    cli
     cld
     PUSH_ALL_REGS
     mov rdi, rsp
@@ -418,7 +428,7 @@ int19:
     POP_ALL_REGS
     iretq
 int20:
-        cli
+    cli
     cld
     PUSH_ALL_REGS
     mov rdi, rsp
@@ -436,7 +446,7 @@ int20:
     POP_ALL_REGS
     iretq
 int21:
-        cli
+    cli
     cld
     PUSH_ALL_REGS
     mov rdi, rsp
@@ -453,62 +463,21 @@ int21:
 .end:
     POP_ALL_REGS
     iretq
+; ----- Intel reserved -------
 int22:
-    cli
-	cld
-	PUSH_ALL_REGS
-	mov rdi, 22
-	mov rax, [irq_handlers+176]
-	call rax
-	POP_ALL_REGS
-	iretq
+    jmp int15
 int23:
-    cli
-	cld
-	PUSH_ALL_REGS
-	mov rdi, 23
-	mov rax, [irq_handlers+184]
-	call rax
-	POP_ALL_REGS
-	iretq
+    jmp int15
 int24:
-    cli
-	cld
-	PUSH_ALL_REGS
-	mov rdi, 24
-	mov rax, [irq_handlers+192]
-	call rax
-	POP_ALL_REGS
-	iretq
+    jmp int15
 int25:
-    cli
-	cld
-	PUSH_ALL_REGS
-	mov rdi, 25
-	mov rax, [irq_handlers+200]
-	call rax
-	POP_ALL_REGS
-	iretq
+    jmp int15
 int26:
-    cli
-	cld
-	PUSH_ALL_REGS
-	mov rdi, 26
-	mov rax, [irq_handlers+208]
-	call rax
-	POP_ALL_REGS
-	iretq
+    jmp int15
 int27:
-    cli
-	cld
-	PUSH_ALL_REGS
-	mov rdi, 27
-	mov rax, [irq_handlers+216]
-	call rax
-	POP_ALL_REGS
-	iretq
+    jmp int15
 int28:
-        cli
+    cli
     cld
     PUSH_ALL_REGS
     mov rdi, rsp
@@ -526,7 +495,7 @@ int28:
     POP_ALL_REGS
     iretq
 int29:
-        cli
+    cli
     cld
     PUSH_ALL_REGS
     mov rdi, rsp
@@ -544,7 +513,7 @@ int29:
     POP_ALL_REGS
     iretq
 int30:
-        cli
+    cli
     cld
     PUSH_ALL_REGS
     mov rdi, rsp
@@ -561,17 +530,12 @@ int30:
 .end:
     POP_ALL_REGS
     iretq
+; -------- Intel reserved ---------
 int31:
-    cli
-	cld
-	PUSH_ALL_REGS
-	mov rdi, 31
-	mov rax, [irq_handlers+248]
-	call rax
-	POP_ALL_REGS
-	iretq
+    jmp int15
 
-; ---------------------------------------- IRQ ------------------------------------------------------
+; ---------------------------------------- free - IRQs ------------------------------------------------------
+
 int32:
 	cli
 	cld
@@ -597,36 +561,84 @@ int33:
 	cli
 	cld
 	PUSH_ALL_REGS
-	mov rdi, 33
+	mov rdi, rsp
+	mov rsi, 33
+	mov rax, rsp
+	and rax, 0xf
+	cmp rax, 0
+	jnz .align_stack
+	mov rax, [irq_handlers+264]
+    call rax
+	jmp .end
+.align_stack:
+	sub rsp, 8
 	mov rax, [irq_handlers+264]
 	call rax
+	add rsp, 8
+.end:
 	POP_ALL_REGS
 	iretq
 int34:
 	cli
 	cld
 	PUSH_ALL_REGS
-	mov rdi, 34
+	mov rdi, rsp
+	mov rsi, 34
+	mov rax, rsp
+	and rax, 0xf
+	cmp rax, 0
+	jnz .align_stack
+	mov rax, [irq_handlers+272]
+    call rax
+	jmp .end
+.align_stack:
+	sub rsp, 8
 	mov rax, [irq_handlers+272]
 	call rax
+	add rsp, 8
+.end:
 	POP_ALL_REGS
 	iretq
 int35:
 	cli
 	cld
 	PUSH_ALL_REGS
-	mov rdi, 35
+	mov rdi, rsp
+	mov rsi, 35
+	mov rax, rsp
+	and rax, 0xf
+	cmp rax, 0
+	jnz .align_stack
+	mov rax, [irq_handlers+280]
+    call rax
+	jmp .end
+.align_stack:
+	sub rsp, 8
 	mov rax, [irq_handlers+280]
 	call rax
+	add rsp, 8
+.end:
 	POP_ALL_REGS
 	iretq
 int36:
 	cli
 	cld
 	PUSH_ALL_REGS
-	mov rdi, 36
+	mov rdi, rsp
+	mov rsi, 36
+	mov rax, rsp
+	and rax, 0xf
+	cmp rax, 0
+	jnz .align_stack
+	mov rax, [irq_handlers+288]
+    call rax
+	jmp .end
+.align_stack:
+	sub rsp, 8
 	mov rax, [irq_handlers+288]
 	call rax
+	add rsp, 8
+.end:
 	POP_ALL_REGS
 	iretq
 int37:

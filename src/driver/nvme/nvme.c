@@ -371,7 +371,7 @@ void set_io_command_set(volatile PCI_DEV* device) {
     cp->CC = (cp->CC & ~(uint32_t)(0b1111 << 16)) | 0b0110 << 16;
 }
 
-void isr(uint64_t irq, uint64_t* rsp) {
+void isr(uint64_t* rsp, uint64_t irq) {
     if (!irq_mapping) {
         print("ERROR: Recieved Interrupt that is not mapped yet");
         while(1);
@@ -427,7 +427,6 @@ void init_nvme_controller(volatile PCI_DEV* device) {
     
     // in qemu MSI-X interrupts must be enabled before admin queues are allocated, this is currently a bug???
     enable_interrupts(device);
-    
     // reset controller
     disable(device);
     configure_admin_queues(device);
