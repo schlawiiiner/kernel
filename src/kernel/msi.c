@@ -3,14 +3,35 @@
 #include "../../src/include/pci.h"
 #include "../../src/include/msi.h"
 
+int msix_support(volatile PCI_DEV* device) {
+    //check if the device supports MSIX
+    if (!(device->msix_cap)) {
+        return DEVICE_DOES_NOT_SUPPORT_MSIX;
+    }
+    
+    PCI_MSIX_CAP* msix_capability = device->msix_cap;
+    int bir = (int)(msix_capability->Table & 0b11);
+    if (!(device->bars[bir].present)) {
+        return BAR_FOR_MSIX_VECTOR_TABLE_NOT_PRESENT;
+    }
+    return DEVICE_SUPORTS_MSIX;
+}
+
+void msix_enable(volatile PCI_DEV* device) {
+    if (msix_support(device)) {
+        print("ERROR: Device does not support MSIX");
+        while(1);
+    }
+}
+
 void __attribute__((optimize("O0"))) enable_MSIX(volatile PCI_DEV* device, uint32_t irq) {
     //check if the device supports MSIX
-    if (!(device->msix_cap_offset)) {
+    if (!(device->msix_cap)) {
         print("ERROR: device does not support MSIX");
         while(1);
     }
     
-    PCI_MSIX_CAP* msix_capability = (PCI_MSIX_CAP*)((uint64_t)(device->PCI_Config_Space) + device->msix_cap_offset);
+    PCI_MSIX_CAP* msix_capability = device->msix_cap;
     int bir = (int)(msix_capability->Table & 0b11);
     if (!(device->bars[bir].present)) {
         print("ERROR: BAR used for MSIX vector table not present");
@@ -28,13 +49,11 @@ void __attribute__((optimize("O0"))) enable_MSIX(volatile PCI_DEV* device, uint3
         table[i].Message_Data = irq;
         table[i].Vector_Control = 0x1;
     }
-    // enable MSIX
     msix_capability->Message_Control |= (1 << 15);
 
     for (int i = 0; i < table_size; i++) {
         table[i].Vector_Control = 0x0;
     }
-    // unmask the function
     msix_capability->Message_Control &= ~(uint16_t)(1 << 14);
     
 
@@ -44,7 +63,7 @@ void __attribute__((optimize("O0"))) dump_MSI_capability(uint32_t* msi_capabilit
     
 }
 
-//TODO: handle 64 Bit vs 32 Bit addresses
+/*TODO: handle 64 Bit vs 32 Bit addresses
 void __attribute__((optimize("O0"))) enable_MSI(int device_number) {
     volatile PCI_DEV* device = &(device_list.devices[device_number]);
     if (!(device->msi_cap_offset)) {
@@ -63,5 +82,5 @@ void __attribute__((optimize("O0"))) enable_MSI(int device_number) {
     //enable MSI
     msi_capability[0] |= (1<<16);
 
-}
+}*/
 

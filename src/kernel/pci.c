@@ -16,13 +16,13 @@ void add_capabilities(volatile PCI_DEV* device) {
     uint8_t* cap_ptr;
     switch (device->hdr_type) {
     case 0x0:
-        cap_ptr = (uint8_t*)header + (((PCIHeaderType0*)header)->Capabilities_Pointer & ~3);
+        cap_ptr = (uint8_t*)header + (((PCIHeader*)header)->HeaderType.Type0.Capabilities_Pointer & ~3);
         break;
     case 0x1:
-        cap_ptr =  (uint8_t*)header + (((PCIHeaderType1*)header)->Capability_Pointer & ~3);
+        cap_ptr =  (uint8_t*)header + (((PCIHeader*)header)->HeaderType.Type1.Capability_Pointer & ~3);
         break;
     case 0x2:
-        cap_ptr = (uint8_t*)header + (((PCIHeaderType2*)header)->Offset_Of_Capabilities_List & ~3);
+        cap_ptr = (uint8_t*)header + (((PCIHeader*)header)->HeaderType.Type2.Offset_Of_Capabilities_List & ~3);
         break;
     default:
         print("unknown Header Type ");
@@ -34,16 +34,16 @@ void add_capabilities(volatile PCI_DEV* device) {
         uint8_t cap_id = *cap_ptr;
         switch (cap_id) {
         case 0x1:
-            device->pci_pmi_cap_offset = (uint16_t)((uint64_t)cap_ptr - (uint64_t)header);
+            device->pci_pmi_cap = (PCI_Power_Management_CAP*)cap_ptr;
             break;
         case 0x5:
-            device->msi_cap_offset = (uint16_t)((uint64_t)cap_ptr - (uint64_t)header);
+            device->msi_cap = (void*)cap_ptr;
             break;
         case 0x10:
-            device->pcie_cap_offset = (uint16_t)((uint64_t)cap_ptr - (uint64_t)header);
+            device->pcie_cap = (PCIe_CAP*)cap_ptr;
             break;
         case 0x11:
-            device->msix_cap_offset = (uint16_t)((uint64_t)cap_ptr - (uint64_t)header);
+            device->msix_cap = (PCI_MSIX_CAP*)cap_ptr;
             break;
         default:
             //TODO: other ID's must to be implemented and added to the PCI_DEV struct
@@ -56,16 +56,16 @@ void add_capabilities(volatile PCI_DEV* device) {
 
 void dump_capability(volatile PCI_DEV* device) {
         print("\n ------- PCI Capabilities -------\n");
-    if (device->pci_pmi_cap_offset) {
+    if (device->pci_pmi_cap) {
         print("  PCI Power Management Interface\n");
     }
-    if (device->pcie_cap_offset) {
+    if (device->pcie_cap) {
         print("  PCI Express\n");
     }
-    if (device->msi_cap_offset) {
+    if (device->msi_cap) {
         print("  MSI\n");
     }
-    if (device->msix_cap_offset) {
+    if (device->msix_cap) {
         print("  MSI-X\n");
     }
     print(" --------------------------------\n");
@@ -165,7 +165,7 @@ void __attribute__((optimize("O0"))) map_64_BAR(uint32_t* bar_ptr, int bar_numbe
     }
 }
 
-void map_device(PCIHeaderType0* device, int device_number) {
+void map_device(PCIHeader* device, int device_number) {
     uint32_t *barx = (uint32_t*)((uint64_t)device + 0x10);
     int x = 0;
     while (x < 6) {
@@ -215,7 +215,7 @@ void add_device(MCFG_entry* entry, int bus, int slot, int func) {
     device_list.devices[n].function = func;
     device_list.devices[n].hdr_type = device->Header_Type & 0b01111111;
     if (device_list.devices[n].hdr_type == 0x0) {
-        map_device((PCIHeaderType0*)device, n);
+        map_device((PCIHeader*)device, n);
     }
 
     device_list.devices[n].PCI_Config_Space = device;

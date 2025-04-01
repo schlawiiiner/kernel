@@ -395,7 +395,7 @@ void isr(uint64_t irq, uint64_t* rsp) {
 }
 
 void enable_interrupts(volatile PCI_DEV* device) {
-    if (!device->msix_cap_offset) {
+    if (!device->msix_cap) {
         print("ERROR: Device does not support MSI-X");
         while(1);
     }
@@ -417,7 +417,7 @@ void init_nvme_controller(volatile PCI_DEV* device) {
         return;
     }
     dump_capability(device);
-    if (0x0 == device->pcie_cap_offset) {
+    if (0x0 == device->pcie_cap) {
         print("nvme controller does not support pcie\n");
         return;
     }
