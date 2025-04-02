@@ -10,7 +10,7 @@
 
 /*see apic.asm*/
 extern uint32_t enable_APIC(void);
-extern uint32_t remap_APIC_registers(uint32_t addr);
+extern void remap_APIC_registers(uint32_t addr);
 
 /*see mp.asm*/
 extern void trampoline_start(void);

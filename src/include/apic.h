@@ -93,17 +93,17 @@ ICR Register
 
 void init_APIC(void);
 
-void inline remap_timer(uint8_t vector) {
+inline static void remap_timer(uint8_t vector) {
     uint32_t * lvt_timer_reg = (uint32_t *)(APIC_BASE + LVT_TIMER_REG_OFFSET);
     lvt_timer_reg[0] = (lvt_timer_reg[0] & 0xffffff00) | (0xff & vector);
 }
 
-void inline mask_timer(void) {
+inline static void mask_timer(void) {
     uint32_t * lvt_timer_reg = (uint32_t *)(APIC_BASE + LVT_TIMER_REG_OFFSET);
     lvt_timer_reg[0] = lvt_timer_reg[0] | (1 << 16);
 }
 
-void inline unmask_timer(void) {
+inline static void unmask_timer(void) {
     uint32_t * lvt_timer_reg = (uint32_t *)(APIC_BASE + LVT_TIMER_REG_OFFSET);
     lvt_timer_reg[0] = lvt_timer_reg[0] & (~(1 << 16));
 }
@@ -113,7 +113,7 @@ void inline unmask_timer(void) {
 0x1 : periodic
 0x2 : TSC-deadline
 */
-void inline set_timer_mode(uint8_t mode) {
+inline static void set_timer_mode(uint8_t mode) {
     uint32_t * lvt_timer_reg = (uint32_t *)(APIC_BASE + LVT_TIMER_REG_OFFSET);
     lvt_timer_reg[0] = (lvt_timer_reg[0] & ~0x60000) | ((mode & 0x3) << 17);
 }
@@ -123,7 +123,7 @@ static inline void send_EOI(void) {
     EOI_register[0] = 0;
 }
 
-void inline set_initial_count(uint32_t count) {
+inline static void set_initial_count(uint32_t count) {
     uint32_t *initial_count_register = (uint32_t *)(APIC_BASE + INIT_COUNT_REG_OFFSET);
     initial_count_register[0] = count;
 }
@@ -138,7 +138,7 @@ void inline set_initial_count(uint32_t count) {
 0xa: Divide by 128
 0xb: Divide by 1
 */
-void inline set_divide_configuration(uint8_t divide) {
+inline static void set_divide_configuration(uint8_t divide) {
     uint32_t *divide_configuration_register = (uint32_t *)(APIC_BASE + DIVIDE_CONFIG_REG_OFFSET);
     divide_configuration_register[0] = divide_configuration_register[0] | divide;
 }

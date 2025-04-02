@@ -2,6 +2,7 @@
 #include "../../src/include/uint.h"
 #include "../../src/include/mm/memory.h"
 #include "../../src/include/io.h"
+#include "../../src/include/graphics.h"
 
 volatile MemoryInformation mem_info;
 #define MEMORY_MAP_ENTRIES          100
@@ -13,10 +14,17 @@ extern KernelMemoryMap kernel_mmap[3];
 void insert_mmap_entry(uint64_t paddr, uint64_t vaddr, uint64_t type, uint64_t size) {
     //first we search the slot where to insert the mmap entry
     int slot;
+    int found = 0;
     for (int i = 0; i < memory_map_size; i++) {
         if ((memory_map[i].paddr <= paddr) && (paddr < memory_map[i].paddr + memory_map[i].size)) {
             slot = i;
+            found = 1;
+            break;
         } 
+    }
+    if (!found) {
+        print("ERROR: found no free memory slot");
+        while(1);
     }
     if (memory_map[slot].paddr == paddr) {
         memory_map_size++;
@@ -113,6 +121,7 @@ uint64_t allocate_slot(uint64_t type) {
             return memory_map[i].paddr;
         }
     }
+    return 0x0;
 }
 
 uint64_t allocate_huge_slot(uint64_t type) {
@@ -135,16 +144,19 @@ uint64_t allocate_huge_slot(uint64_t type) {
             
         }
     }
+    return 0x0;
 }
 
 uint64_t allocate_clean_slot(uint64_t type) {
     uint64_t addr = allocate_slot(type);
     memset(addr, 0x0, PAGE_SIZE_);
+    return addr;
 }
 
 uint64_t allocate_huge_clean_slot(uint64_t type) {
     uint64_t addr = allocate_huge_slot(type);
     memset(addr, 0x0, PAGE_SIZE);
+    return addr;
 }
 
 

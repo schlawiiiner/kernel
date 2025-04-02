@@ -264,7 +264,7 @@ int get_device_number() {
 }
 
 void dump_devices() {
-    for (int i = 0; i < device_list.number_devices; i++) {
+    for (uint64_t i = 0; i < device_list.number_devices; i++) {
         dump_device(i);
     }
 }
@@ -275,7 +275,7 @@ void enumerate_devices() {
         while(1);
     }
     device_list.number_devices = 0;
-    for (int offset = 44; offset < acpi.MCFG->Length; offset+=sizeof(MCFG_entry)) {
+    for (uint32_t offset = 44; offset < acpi.MCFG->Length; offset+=sizeof(MCFG_entry)) {
         MCFG_entry* entry = (MCFG_entry*)((uint64_t)acpi.MCFG + offset);
         uint64_t addr = entry->base_address;
         for (int bus = entry->start_PCI_bus_number; bus <= entry->end_PCI_bus_number; bus++) {

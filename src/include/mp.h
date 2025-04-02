@@ -55,7 +55,7 @@ typedef struct __attribute__((packed)) TaskQueue {
     Task* dequeue;
 } TaskQueue;
 
-typedef struct __attribute__((packed)) CPU {
+typedef struct __attribute__((packed, aligned(8))) CPU {
     uint8_t Processor_ID;
     uint8_t APIC_ID;
     uint8_t Initialized;
@@ -64,7 +64,7 @@ typedef struct __attribute__((packed)) CPU {
     TaskStateSegment Tss;
 } CPU;
 
-typedef struct __attribute__((packed)) CPUs {
+typedef struct __attribute__((packed, aligned(8))) CPUs {
     uint8_t number;
     uint8_t reserved[7];
     CPU cpu[];
