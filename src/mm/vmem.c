@@ -10,7 +10,7 @@ void init_pool(VMemNodePool* pool, VMemNodePool* previous, VMemNodePool *next) {
     pool->previous = previous;
     pool->next = next;
     pool->stack_ptr = sizeof(pool->pool)/sizeof(VMemNode)-1;
-    for (int i = 0; i < sizeof(pool->pool)/sizeof(VMemNode); i++) {
+    for (long unsigned int i = 0; i < sizeof(pool->pool)/sizeof(VMemNode); i++) {
         pool->stack[i] = pool->pool + i;
     }
     if (previous) {

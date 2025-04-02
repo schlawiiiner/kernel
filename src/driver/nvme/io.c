@@ -84,7 +84,7 @@ void read_block_group_descriptors(volatile PCI_DEV* device, PartitionEntry* part
     read_command(device, 1, (uint64_t)block_group_descr, 0x0, slba, nlba, 0x1);
     check_completion_status(poll_cq(device, 1));
 
-    for (int i = 0; i < block_group_count; i++) {
+    for (uint64_t i = 0; i < block_group_count; i++) {
         read_inode_table(device, superblock, block_group_descr + i);
     }
 }

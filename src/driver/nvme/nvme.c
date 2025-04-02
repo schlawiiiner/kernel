@@ -212,7 +212,7 @@ void set_prp(NVME_SubmissionQueueEntry* cmd, void* buffer, uint32_t size) {
         }
         uint64_t* prp_list = (uint64_t*)malloc(0x1000);
         memset((uint64_t)prp_list, 0x0, 0x1000);
-        for (int i = 0; i < n_pages; i++) {
+        for (uint64_t i = 0; i < n_pages; i++) {
             prp_list[i] = get_paddr((uint64_t)buffer + (1 + i)*PAGE_SIZE_);
         }
         cmd->PRP[0] = get_paddr((uint64_t)buffer);

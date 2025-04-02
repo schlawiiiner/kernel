@@ -102,7 +102,7 @@ void route_hardware_interrupt(int irq, int gsi, func_ptr_t isr) {
     for (int i = 0; i < ioapic_list.number; i++) {
         int base = ioapic_list.ioapics[i].InterruptBase;
         int max = max_redirection_entries(ioapic_list.ioapics[i].IOAPICBase) + base;
-        if (base <= gsi < max) {
+        if ((base <= gsi) && (gsi < max)) {
             irq_handlers[irq] = isr;
             write_redirection_entry(ioapic_list.ioapics[i].IOAPICBase, gsi - base, irq, 0, 0, 0, 0, 0, 0);
             return;

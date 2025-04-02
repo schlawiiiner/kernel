@@ -10,7 +10,7 @@ volatile ACPI acpi __attribute__((section(".sysvar")));
 void check_checksum(ACPI_Table_Header* table) {
     uint8_t* ptr = (uint8_t*)table;
     uint32_t sum = 0;
-    for (int i = 0; i < table->Length; i++) {
+    for (uint32_t i = 0; i < table->Length; i++) {
         sum += ptr[i];
     }
     if ((sum % 0x100) != 0x00) {

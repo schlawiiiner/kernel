@@ -167,7 +167,7 @@ uint64_t get_paddr(uint64_t vaddr) {
     if (!(p2[p2_offset] & PRESENT)) {
         return 0x0;
     } else if (p2[p2_offset] & PS) {
-        return ((uint64_t)1 << 63) | (p2[p2_offset] & (uint64_t)0xffffffffff000) + offset + (p1_offset << 12);
+        return ((uint64_t)1 << 63) | ((p2[p2_offset] & (uint64_t)0xffffffffff000) + offset + (p1_offset << 12));
     }
     uint64_t* p1 = (uint64_t*)(0xFFFFFF8000000000 | (p4_offset << 30) | (p3_offset << 21) | (p2_offset << 12));
     return (p1[p1_offset] & (uint64_t)0xffffffffff000) + offset;

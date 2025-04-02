@@ -21,7 +21,7 @@ void crc32_init(void) {
 
 uint32_t reflect(uint32_t value, uint32_t bits) {
     uint32_t result = 0;
-    for (int i = 0; i < bits; i++) {
+    for (uint32_t i = 0; i < bits; i++) {
         result = (result << 1) | (value & 1);
         value >>= 1;
     }
@@ -45,7 +45,7 @@ uint32_t calculate_crc32(void* buffer, uint32_t size, uint32_t seed) {
     crc32_init();
     const uint8_t *data = buffer;
     uint32_t crc = seed ^ 0xffffffff;
-    for (int i = 0; i < size; i++) {
+    for (uint32_t i = 0; i < size; i++) {
         crc ^= data[i];
         crc = (crc >> 8) ^ crc32_table[crc & 0xff];
     }
@@ -56,7 +56,7 @@ uint32_t calculate_crc32c(void* buffer, uint32_t size, uint32_t seed) {
     crc32c_init();
     const uint8_t *data = buffer;
     uint32_t crc = seed ^ 0xffffffff;
-    for (int i = 0; i < size; i++) {
+    for (uint32_t i = 0; i < size; i++) {
         crc = (crc >> 8) ^ crc32c_table[(crc ^ data[i]) & 0xff];
     }
     return crc ^ 0xffffffff;

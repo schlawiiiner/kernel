@@ -177,7 +177,7 @@ void init_cpus() {
         while(1);
     }
     uint8_t* base = (uint8_t*)acpi.MADT;
-    int offset = 0x2c;
+    uint32_t offset = 0x2c;
     int number_of_cpus = 0;
     while (offset < acpi.MADT->Length) {
         if (base[offset] == 0x0) {
