@@ -1,6 +1,7 @@
 bits 32
 
 section .boot
+; check if multiboot2 magic number is correct
 check_multiboot:
     cmp eax, 0x36d76289
     jne .no_multiboot

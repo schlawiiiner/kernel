@@ -4,7 +4,7 @@ SCREEN_Y = 1080
 
 LDFLAGS =  --oformat elf64-x86-64
 NASMFLAGS = -felf64 -DMAX_RAMSIZE=$(MAX_RAMSIZE) -DSCREEN_X=$(SCREEN_X) -DSCREEN_Y=$(SCREEN_Y)
-GCCFLAGS = -O2 -fno-pic -fno-pie -mcmodel=large -nostdlib -fno-builtin -fno-exceptions -ffreestanding -mno-red-zone -fno-leading-underscore -Wunused-result -DMAX_RAMSIZE=$(MAX_RAMSIZE) -Wall -Wextra -Werror=implicit-function-declaration
+GCCFLAGS = -O2 -fno-pic -fno-pie -mcmodel=large -nostdlib -fno-exceptions -ffreestanding -mno-red-zone -fno-leading-underscore -Wunused-result -DMAX_RAMSIZE=$(MAX_RAMSIZE) -Wall -Wextra -Werror=implicit-function-declaration
 INCLUDES = -I$(PWD)
 
 objects = bin/loader.o bin/kernel.o bin/interrupts.o bin/graphics.o bin/font.o bin/serial_port.o bin/acpi.o bin/apic.o bin/ioapic.o bin/pci.o bin/msi.o bin/utils.o bin/gdt.o bin/memory.o bin/vmem.o bin/pmem.o bin/mmap.o bin/mp.o bin/slab.o bin/nvme.o bin/io.o bin/crc.o

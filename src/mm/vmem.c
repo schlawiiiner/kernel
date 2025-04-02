@@ -60,6 +60,7 @@ void free_node(VMemNode* node) {
         if (((uint64_t)pool < (uint64_t)node) && ((uint64_t)node < ((uint64_t)pool+PAGE_SIZE_))) {
             pool->stack_ptr++;
             pool->stack[pool->stack_ptr] = node;
+            //TODO: check if VMemPool could be freed
             break;
         } else {
             if (!pool->next) {

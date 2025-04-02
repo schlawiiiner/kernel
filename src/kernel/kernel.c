@@ -156,7 +156,7 @@ void halt(void) {
     }
 }
 
-void kernelmain(BootInformation* multiboot_structure, unsigned int magicnumber) {
+void kernelmain(BootInformation* multiboot_structure) {
     parse_boot_information(multiboot_structure);
     init_memory(multiboot_structure);
     init_graphics();

@@ -71,7 +71,7 @@ void dump_capability(volatile PCI_DEV* device) {
     print(" --------------------------------\n");
 }
 
-void __attribute__((optimize("O0"))) map_32_BAR(uint32_t* bar_ptr, int bar_number, int device_number) {
+void map_32_BAR(uint32_t* bar_ptr, int bar_number, int device_number) {
     uint32_t bar = bar_ptr[0];
     bar_ptr[0] = 0xffffffff;
     uint32_t size = bar_ptr[0] & 0xFFFFFFF0;
@@ -107,7 +107,7 @@ void __attribute__((optimize("O0"))) map_32_BAR(uint32_t* bar_ptr, int bar_numbe
     }
 }
 
-void __attribute__((optimize("O0"))) map_IO_BAR(uint32_t* bar_ptr, int bar_number, int device_number) {
+void map_IO_BAR(uint32_t* bar_ptr, int bar_number, int device_number) {
     uint32_t bar = bar_ptr[0];
     bar_ptr[0] = 0xffffffff;
     uint32_t size = (uint32_t)(bar_ptr[0] & 0xfffffffc);
@@ -124,7 +124,7 @@ void __attribute__((optimize("O0"))) map_IO_BAR(uint32_t* bar_ptr, int bar_numbe
     }
 }
 
-void __attribute__((optimize("O0"))) map_64_BAR(uint32_t* bar_ptr, int bar_number, int device_number) {
+void map_64_BAR(uint32_t* bar_ptr, int bar_number, int device_number) {
     uint32_t bara = bar_ptr[0];
     uint32_t barb = bar_ptr[1];
     bar_ptr[0] = 0xffffffff;
@@ -198,11 +198,7 @@ void map_device(PCIHeader* device, int device_number) {
 }
 
 /*This function adds the device to the global device list*/
-void add_device(MCFG_entry* entry, int bus, int slot, int func) {
-    PCIHeader* device = (PCIHeader*)((uint64_t)(entry->base_address) + (bus << 20 | slot << 15 | func << 12));
-    if (device->Vendor_ID == 0xffff) {
-        return;
-    }
+void add_device(PCIHeader* device, int bus, int slot, int func) {
     int n = device_list.number_devices;
     device_list.devices[n].vendor = device->Vendor_ID;
     device_list.devices[n].device = device->Device_ID;
@@ -269,6 +265,26 @@ void dump_devices() {
     }
 }
 
+void check_device(MCFG_entry* entry, int bus, int slot) {
+    int func = 0;
+    PCIHeader* device = (PCIHeader*)((uint64_t)(entry->base_address) + (bus << 20 | slot << 15 | func << 12));
+    if (device->Vendor_ID == 0xffff) {
+        return;
+    }
+    if (device->Header_Type & (1 << 7)) {
+        for (func = 1; func < 8; func++) {
+            PCIHeader* device = (PCIHeader*)((uint64_t)(entry->base_address) + (bus << 20 | slot << 15 | func << 12));
+            if (device->Vendor_ID == 0xffff) {
+                continue;
+            } else {
+                add_device(device, bus, slot, func);
+            }
+        }
+    } else {
+        add_device(device, bus, slot, func);
+    }
+}
+
 void enumerate_devices() {
     if (!(acpi.Flags & 0b010)) {
         print("ERROR: MCFG table not present");
@@ -280,10 +296,9 @@ void enumerate_devices() {
         uint64_t addr = entry->base_address;
         for (int bus = entry->start_PCI_bus_number; bus <= entry->end_PCI_bus_number; bus++) {
             for (int slot = 0; slot < 32; slot++) {
-                for (int func = 0; func < 8; func++) {
-                    add_device(entry, bus, slot, func);
-                }
+                check_device(entry, bus, slot);
             }
         }
     }
+    printhex(device_list.number_devices);
 }

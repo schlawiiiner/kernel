@@ -20,7 +20,6 @@ loader:
     mov esp, stack_top
     mov ebp, stack_top
     mov dword [boot_info], ebx
-    mov dword [magic], eax
     call check_multiboot
     call check_cpuid
     call check_MSR
@@ -40,11 +39,8 @@ longmode:
     mov ss, ax
     jmp enable_interrupts
 interrupts_enabled:
-    xor ecx, ecx
-    xor edi, edi
-    xor rsi, rsi
+    xor rdi, rdi
     mov edi, [boot_info]
-    mov esi, [magic]
     mov rax, kernelmain
     call rax
 
@@ -112,8 +108,6 @@ IDT:
     resb 4096
 
 framebuffer:
-    resb 4
-magic:
     resb 4
 boot_info:
     resb 4
