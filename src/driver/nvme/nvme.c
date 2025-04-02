@@ -6,8 +6,6 @@
 #include "../../../src/include/apic.h"
 #include "../../../src/include/interrupts.h"
 
-volatile NVME_IRQ_Mapping* irq_mapping = (NVME_IRQ_Mapping*)0x0;
-
 void check_completion_status(NVME_CompletionQueueEntry* entry) {
     if ((entry->Status >> 1) != 0x0) {
         print("ERROR: Error Code in completion status");
@@ -372,25 +370,8 @@ void set_io_command_set(volatile PCI_DEV* device) {
 }
 
 void isr(uint64_t* rsp, uint64_t irq) {
-    if (!irq_mapping) {
-        print("ERROR: Recieved Interrupt that is not mapped yet");
-        while(1);
-    }
-    volatile NVME_IRQ_Mapping* map = irq_mapping;
-    volatile PCI_DEV* device;
-    while(1) {
-        if (irq == map->irq) {
-            device = map->device;
-            break;
-        } else {
-            if (!map->next) {
-                print("ERROR: Recieved Interrupt that is not mapped yet");
-                while(1);
-            } else {
-                map = map->next;
-            }
-        }
-    }
+    volatile PCI_DEV* device = get_device_mapped((uint8_t)irq);
+    
     send_EOI();
 }
 
@@ -405,11 +386,6 @@ void enable_interrupts(volatile PCI_DEV* device) {
         while(1);
     }
     enable_MSIX(device, irq);
-
-    irq_mapping = (NVME_IRQ_Mapping*)malloc(sizeof(NVME_IRQ_Mapping));
-    irq_mapping->device = device;
-    irq_mapping->irq = irq;
-    irq_mapping->next = 0x0;
 }
 
 void init_nvme_controller(volatile PCI_DEV* device) {

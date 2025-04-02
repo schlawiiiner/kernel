@@ -9,6 +9,7 @@ bits 32
 global p4_table
 global p3_table
 global p2_table
+extern kernel_mmap          ; see mmap.c and memory.h and linker.ld
 
 section .boot
 set_up_page_tables:
@@ -22,39 +23,38 @@ set_up_page_tables:
     mov [p4_table+256*8], eax
 
     mov eax, p2_table
-    or eax, 0b11 ; present + writable
+    or eax, 0b11                                    ; present + writable
     mov [p3_table], eax
     
     mov eax, p2_table_high
-    or eax, 0b11 ; present + writable
+    or eax, 0b11                                    ; present + writable
     mov [p3_table_high], eax
     
     ; map each P2 entry to a huge 2MiB page
-    mov ecx, 0         ; counter variable
+    xor ecx, ecx                                    ; counter variable
 
 .map_p2_table_low:
     ; map ecx-th P2 entry to a huge page that starts at address 2MiB*ecx
-    mov eax, 0x200000  ; 2MiB
-    mul ecx            ; start address of ecx-th page
-    or eax, 0b10000011 ; present + writable + huge
-    mov [p2_table + ecx * 8], eax ; map ecx-th entry
+    mov eax, 0x200000                               ; 2MiB
+    mul ecx                                         ; start address of ecx-th page
+    or eax, 0b10000011                              ; present + writable + huge
+    mov [p2_table + ecx * 8], eax                   ; map ecx-th entry
 
-    inc ecx            ; increase counter
-    cmp ecx, 512       ; if counter == 512, the whole P2 table is mapped
-    jl .map_p2_table_low  ; else map the next entry
+    inc ecx                                         ; increase counter
+    cmp ecx, 1024                                   ; if counter == 512, the whole P2 table is mapped
+    jl .map_p2_table_low                            ; else map the next entry
 
-    xor ecx, ecx
-    
+    xor ecx, ecx                                    ; loop counter
 .map_p2_table_high:
     ; map ecx-th P2 entry to a huge page that starts at address 2MiB*ecx
-    mov eax, 0x0200000                  ; load addr of high half kernel
+    mov eax, 0x0200000                              ; huge page size
     mul ecx
     add eax, 0x1000000
-    or eax, 0b10000011                  ; present + writable + huge
-    mov [p2_table_high + ecx * 8], eax            ; map the load address of the high half kernel to the high half
+    or eax, 0b10000011                              ; present + writable + huge
+    mov [p2_table_high + ecx * 8], eax              ; map the load address of the high half kernel to the high half
 
     inc ecx
-    cmp ecx, 512
+    cmp ecx, 1024
     jl .map_p2_table_high
     ret
 
@@ -83,6 +83,7 @@ enable_paging:
 
 section .bss
 ; this is just a temporary page table
+; with this setup 2 GiB can be mapped in the low half and 2GiB in the high half
 align 4096
 p4_table:
     resb 4096
@@ -91,6 +92,6 @@ p3_table:
 p3_table_high:
     resb 4096
 p2_table:
-    resb 4096*512
+    resb 4096
 p2_table_high:
-    resb 4092*512
+    resb 4092

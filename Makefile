@@ -2,7 +2,7 @@ MAX_RAMSIZE = 0x400000000
 SCREEN_X = 1920
 SCREEN_Y = 1080
 
-LDFLAGS =  --warn-common --warn-section-align --warn-shared-textrel --oformat elf64-x86-64
+LDFLAGS =  --oformat elf64-x86-64
 NASMFLAGS = -felf64 -DMAX_RAMSIZE=$(MAX_RAMSIZE) -DSCREEN_X=$(SCREEN_X) -DSCREEN_Y=$(SCREEN_Y)
 GCCFLAGS = -O2 -fno-pic -fno-pie -mcmodel=large -nostdlib -fno-builtin -fno-exceptions -ffreestanding -mno-red-zone -fno-leading-underscore -Wunused-result -DMAX_RAMSIZE=$(MAX_RAMSIZE) -Wall -Wextra -Werror=implicit-function-declaration
 INCLUDES = -I$(PWD)
@@ -124,5 +124,5 @@ qemu:
 	@rm -r test 
 
 dissasemble: bin/mykernel.bin
-	@objdump -s -D $< > dissasembly.txt
+	@objdump -s -x -D $< > dissasembly.txt
 

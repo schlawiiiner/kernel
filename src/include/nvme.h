@@ -256,13 +256,6 @@ typedef struct __attribute__((packed)) NVME_ConfigSpace {
 
 typedef struct NVME_IRQ_Mapping NVME_IRQ_Mapping;
 
-struct __attribute__((packed)) NVME_IRQ_Mapping {
-    volatile PCI_DEV* device;
-    uint32_t irq;
-    uint32_t reserved[3];       //ensure that struct is 32 bytes large
-    volatile NVME_IRQ_Mapping* next;
-};
-
 static inline ControllerProperties* get_controller_properties(volatile PCI_DEV* device) {
     return ((NVME_ConfigSpace*)(device->driver_config_space))->CP;
 }

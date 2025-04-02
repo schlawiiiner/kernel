@@ -9,6 +9,8 @@ IRQ_Map irq_map[IRQ_TOTAL_COUNT]  __attribute__((section(".sysvar")));
 
 void default_handler_func(uint64_t* rsp, uint64_t irq) {
     irq_probe = irq;
+    print("ERROR: recieved Interrupt, that is not mapped yet");
+    while(1);
     send_EOI();
 }
 
@@ -19,6 +21,7 @@ void init_irq_map() {
         } else {
             irq_map[i].type = IRQ_UNUSED;
         }
+        irq_map[i].device = (volatile PCI_DEV*)0x0;
     }
     return;
 }
@@ -39,6 +42,10 @@ uint8_t map_isr(func_ptr_t function, volatile PCI_DEV* device) {
     } else {
         return (uint8_t)0x0;
     }
+}
+
+volatile PCI_DEV* get_device_mapped(uint8_t irq) {
+    return irq_map[(int)irq].device;
 }
 
 void __attribute__((optimize("O1"))) kernel_panic(char* str, int error_code, uint64_t*rsp) {

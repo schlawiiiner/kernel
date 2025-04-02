@@ -39,5 +39,6 @@ extern func_ptr_t irq_handlers[IRQ_TOTAL_COUNT];
 
 void default_handler_func(uint64_t* rsp, uint64_t irq);
 uint8_t map_isr(func_ptr_t function, volatile PCI_DEV* device);
+volatile PCI_DEV* get_device_mapped(uint8_t irq);
 void init_irq_map();
 #endif
