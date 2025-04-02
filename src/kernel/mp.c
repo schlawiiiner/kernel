@@ -122,7 +122,11 @@ void __attribute__((optimize("O1"))) task_switcher(uint64_t* rsp, uint64_t irq) 
 }
 
 void init_task_switcher() {
-    map_isr(0x20, task_switcher);
+    uint8_t irq = map_isr(task_switcher, (volatile PCI_DEV*)0x0);
+    if (!irq) {
+        print("ERROR: Task switcher could not be mapped");
+        while(1);
+    }
     task_queue.task_counter = 0;
     task_queue.size = 0;
     task_queue.dequeue = (Task*)0x0;

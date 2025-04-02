@@ -81,13 +81,6 @@ void set_delivery_mode(int lvt_reg_offset, int delivery_mode) {
     lvt_reg[0] |= (delivery_mode & 0b111) << 8;
 }
 
-void init_err() {
-    uint32_t* error_reg = (uint32_t*)(APIC_BASE + LVT_ERROR_REG_OFFSET);
-    uint32_t error = error_reg[0];
-    error &= ~0b1000000011111111;
-    error |= 0x22;
-    error_reg[0] = error;
-}
 
 void  __attribute__((optimize("O0"))) send_IPI(int APIC_ID, int vector, int flags) {
 
@@ -116,7 +109,7 @@ void  __attribute__((optimize("O0"))) send_IPI(int APIC_ID, int vector, int flag
     icr[0] = icr_read;
 }
 
-void __attribute__((optimize("O0"))) apic_err() {
+void __attribute__((optimize("O0"))) apic_err(uint64_t* rsp, uint64_t irq) {
     set_color(0xff0000, 0x000000);
     fill_screen(0x0000);
     set_cursor(0, 0);
@@ -154,6 +147,14 @@ void __attribute__((optimize("O0"))) apic_err() {
         print("Illegal Register Address\n");
     }
     while(1);
+}
+
+void init_err() {
+    uint32_t* error_reg = (uint32_t*)(APIC_BASE + LVT_ERROR_REG_OFFSET);
+    uint32_t error = error_reg[0];
+    error &= ~0b1000000011111111;
+    error |= map_isr(apic_err, (volatile PCI_DEV*)0x0);
+    error_reg[0] = error;
 }
 
 void __attribute__((optimize("O0"))) dump_apic_regs(void) {

@@ -3,8 +3,6 @@
 #include "../../src/include/uint.h"
 #include "../../src/include/pci.h"
 
-#define IRQ_TOTAL_NUMBER            0x100
-
 
 #define CODE_SEG     0x0008
 #define DATA_SEG     0x0010
@@ -20,6 +18,9 @@ typedef struct __attribute__((packed)) GateDescriptor {
     uint32_t zero;            // reserved
 } GateDescriptor;
 
+#define IRQ_TOTAL_COUNT                 0x100
+#define IRQ_EXCEPTION_COUNT             0x21
+
 /*IRQ_MAP.type*/
 #define IRQ_UNUSED                      0x00
 #define IRQ_EXCEPTION                   0x01
@@ -34,11 +35,9 @@ typedef struct __attribute__((packed)) IRQ_Map {
 
 typedef void (*func_ptr_t)(uint64_t*, uint64_t);
 
-extern func_ptr_t irq_handlers[IRQ_TOTAL_NUMBER];
+extern func_ptr_t irq_handlers[IRQ_TOTAL_COUNT];
 
 void default_handler_func(uint64_t* rsp, uint64_t irq);
-void irq_handler(uint64_t* rsp ,uint64_t irq);
-void map_isr(uint8_t irq, func_ptr_t function);
-void init_default_handler();
-uint8_t request_irq_for_mapping();
+uint8_t map_isr(func_ptr_t function, volatile PCI_DEV* device);
+void init_irq_map();
 #endif

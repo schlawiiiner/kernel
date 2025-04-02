@@ -399,11 +399,11 @@ void enable_interrupts(volatile PCI_DEV* device) {
         print("ERROR: Device does not support MSI-X");
         while(1);
     }
-    uint8_t irq = request_irq_for_mapping();
+    uint8_t irq = map_isr(isr, device);
     if (!irq) {
         print("ERROR: Failed to request irq");
+        while(1);
     }
-    map_isr(irq, isr);
     enable_MSIX(device, irq);
 
     irq_mapping = (NVME_IRQ_Mapping*)malloc(sizeof(NVME_IRQ_Mapping));

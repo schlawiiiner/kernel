@@ -1861,6 +1861,7 @@ int255:
 
 intx:
 	PUSH_ALL_REGS
+	and rsi, 0xff
 	mov rdi, rsp
 	mov rax, rsp
 	and rax, 0xf
@@ -1947,37 +1948,38 @@ fix_cs:
     jmp interrupts_enabled
 
 section .irq_table
+align 8
 irq_handlers:
-	dq division_error
-	dq debug
-	dq non_maskable_interrupt
-	dq breakpoint
-	dq overflow
-	dq bound_range_exceeded
-	dq invalid_opcode
-	dq device_not_available
-	dq double_fault
-	dq coprocessor_segment_overrun
-	dq invalid_tss 
-	dq segment_not_present
-	dq stack_segment_fault
-	dq general_protection_fault
-	dq page_fault
-	dq intel_reserved
-	dq x87_floating_point_exception
-	dq alignment_check
-	dq machine_check
-	dq simd_floating_point_exception
-	dq virtualization_exception
-	dq control_protection_exception
-	dq intel_reserved
-	dq intel_reserved
-	dq intel_reserved
-	dq intel_reserved
-	dq intel_reserved
-	dq intel_reserved
-	dq hypervisor_injection_exception
-	dq vmm_communication_exception
-	dq security_exception
-	dq intel_reserved
-	times 224 dq default_handler_func
+	dq division_error						; int 0
+	dq debug								; int 1
+	dq non_maskable_interrupt				; int 2
+	dq breakpoint							; int 3
+	dq overflow								; int 4
+	dq bound_range_exceeded					; int 5
+	dq invalid_opcode						; int 6
+	dq device_not_available					; int 7
+	dq double_fault							; int 8
+	dq coprocessor_segment_overrun			; int 9
+	dq invalid_tss 							; int 10
+	dq segment_not_present					; int 11
+	dq stack_segment_fault					; int 12
+	dq general_protection_fault				; int 13
+	dq page_fault							; int 14
+	dq intel_reserved						; int 15
+	dq x87_floating_point_exception			; int 16
+	dq alignment_check						; int 17
+	dq machine_check						; int 18
+	dq simd_floating_point_exception		; int 19
+	dq virtualization_exception				; int 20
+	dq control_protection_exception			; int 21
+	dq intel_reserved						; int 22
+	dq intel_reserved						; int 23
+	dq intel_reserved						; int 24
+	dq intel_reserved						; int 25
+	dq intel_reserved						; int 26
+	dq intel_reserved						; int 27
+	dq hypervisor_injection_exception		; int 29
+	dq vmm_communication_exception			; int 30
+	dq security_exception					; int 31
+	dq intel_reserved						; int 32
+	times 224 dq default_handler_func		; int 33 - 255

@@ -5,53 +5,40 @@
 #include "../../src/include/ioapic.h"
 #include "../../src/include/io.h"
 
-IRQ_Map irq_map[IRQ_TOTAL_NUMBER]  __attribute__((section(".sysvar")));
-
-void irq_handler(uint64_t* rsp, uint64_t irq) {
-    printdec(irq);
-    if(irq == 0x22) {
-        apic_err();
-    }
-    if (irq == 0x23) {
-        print("IPI");
-    } else if (irq == 0x24) {
-        print(" IOAPIC\n");
-    } else {
-        print(".");
-    }   
-    send_EOI();
-}
+IRQ_Map irq_map[IRQ_TOTAL_COUNT]  __attribute__((section(".sysvar")));
 
 void default_handler_func(uint64_t* rsp, uint64_t irq) {
     irq_probe = irq;
-    print(".");
     send_EOI();
 }
 
-void init_default_handler() {
-    for (int i = 0; i < IRQ_TOTAL_NUMBER; i++) {
-        if (i < 31) {
+void init_irq_map() {
+    for (int i = 0; i < IRQ_TOTAL_COUNT; i++) {
+        if (i < IRQ_EXCEPTION_COUNT) {
             irq_map[i].type = IRQ_EXCEPTION;
+        } else {
+            irq_map[i].type = IRQ_UNUSED;
         }
     }
-}
-// on success returns a value greater or equal to 32, otherwise 0x0
-uint8_t request_irq_for_mapping() {
-    for (int i = 32; i < IRQ_TOTAL_NUMBER; i++) {
-        if (irq_handlers[i] == default_handler_func) {
-            return (uint8_t)i;
-        }
-    }
-    return (uint8_t)0x0;
+    return;
 }
 
-//mapping a function to an irq that corresponds to an cpu exception has no effect
-void map_isr(uint8_t irq, func_ptr_t function) {
-    if (irq_handlers[irq] != default_handler_func) {
-        print("ERROR: IRQ already mapped");
-        while(1);
+uint8_t map_isr(func_ptr_t function, volatile PCI_DEV* device) {
+    uint8_t irq = 0;
+    for (int i = IRQ_EXCEPTION_COUNT; i < IRQ_TOTAL_COUNT; i++) {
+        if (irq_map[i].type == IRQ_UNUSED) {
+            irq = (uint8_t)i;
+            break;
+        }
     }
-    irq_handlers[irq] = function;
+    if (irq) {
+        irq_handlers[(int)irq] = function;
+        irq_map[(int)irq].type = IRQ_HARDWARE;
+        irq_map[(int)irq].device = device;
+        return irq;
+    } else {
+        return (uint8_t)0x0;
+    }
 }
 
 void __attribute__((optimize("O1"))) kernel_panic(char* str, int error_code, uint64_t*rsp) {

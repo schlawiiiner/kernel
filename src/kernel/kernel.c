@@ -174,7 +174,7 @@ void kernelmain(BootInformation* multiboot_structure, unsigned int magicnumber) 
         parse_XSDT(xsdt);
     }
     
-    init_default_handler();
+    init_irq_map();
     init_slab_allocator();
     //parse_MADT();
     init_cpus();

@@ -144,7 +144,7 @@ inline static void set_divide_configuration(uint8_t divide) {
 }
 
 void set_timer();
-void apic_err();
+void apic_err(uint64_t* rsp, uint64_t irq);
 void parse_MADT();
 void send_IPI(int APIC_ID, int vector, int flags);
 void init_aps();

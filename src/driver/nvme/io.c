@@ -61,7 +61,6 @@ void read_inode_table(volatile PCI_DEV* device, Superblock* superblock, BlockGro
     uint64_t buffer_size = superblock->inode_size*superblock->inodes_per_group;
     uint64_t buffer = malloc(buffer_size);
     read_command(device, 1, buffer, 0x0, slba, buffer_size/SECTOR_SIZE, 0x1);
-    while(1);
     check_completion_status(poll_cq(device, 1));
 
     for (uint64_t inode_ptr = buffer; inode_ptr < inode_ptr + buffer_size; inode_ptr+=superblock->inode_size) {
