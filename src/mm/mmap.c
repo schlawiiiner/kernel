@@ -4,10 +4,11 @@
 #include "../../src/include/io.h"
 #include "../../src/include/graphics.h"
 
-volatile MemoryInformation mem_info;
 #define MEMORY_MAP_ENTRIES          100
-TotalMemoryMap memory_map[MEMORY_MAP_ENTRIES];
-int memory_map_size = 0;
+
+volatile MemoryInformation mem_info;
+TotalMemoryMap memory_map[MEMORY_MAP_ENTRIES] __attribute__((section(".sysvar")));
+int memory_map_size __attribute__((section(".sysvar"))) = 0;
 extern KernelMemoryMap kernel_mmap[3];
 
 // This function does not treat the boundary condition correct

@@ -243,6 +243,11 @@ void init_memory(BootInformation* multiboot_structure) {
         write_string_to_serial("ERROR: Bootloader did not provide a memory Map");
         asm volatile ("hlt");
     }
+
+    /*
+    'fill_page_stack' must be called last, since it depends on 'allocate_page_stack' and 'allocate_page_tables'
+    to reserve their space in the mmap
+    */
     generate_mmap(multiboot_structure);
     init_vmem();
     allocate_page_stack();

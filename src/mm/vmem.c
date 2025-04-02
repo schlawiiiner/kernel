@@ -4,6 +4,10 @@
 #include "../../src/include/graphics.h"
 
 VMemNodePool node_pool __attribute__((section(".sysvar")));
+VMemNodePool node_pool2 __attribute__((section(".sysvar")));
+VMemNodePool node_pool3 __attribute__((section(".sysvar")));
+
+VMemNodePool* preallocated_node_pool  __attribute__((section(".sysvar"))) = &node_pool3;
 
 
 void init_pool(VMemNodePool* pool, VMemNodePool* previous, VMemNodePool *next) {
@@ -22,14 +26,26 @@ void init_pool(VMemNodePool* pool, VMemNodePool* previous, VMemNodePool *next) {
     return;
 }
 
+void preallocate_node_pool(VMemNodePool* pool) {
+    init_pool(preallocated_node_pool, pool, (VMemNodePool*)0x0);
+    preallocated_node_pool = (VMemNodePool*)kmalloc(PAGE_SIZE_);
+}
+
 VMemNode* new_node() {
     VMemNodePool* pool = &node_pool;
     while(1) {
         if (pool->stack_ptr < 0) {
             // pool is exhausted so we preallocate a new one
-            asm volatile ("hlt");
-            pool = pool->next;
-            continue;
+            if (!pool->next) {
+                write_string_to_serial("ERROR: No preallocated VMemNodePool");
+                asm volatile ("hlt");
+            } else {
+                pool = pool->next;
+                if (!(pool->next)) {
+                    preallocate_node_pool(pool);
+                }
+                continue;
+            }
         } else {
             VMemNode * node = pool->stack[pool->stack_ptr];
             pool->stack_ptr--;
@@ -41,7 +57,7 @@ VMemNode* new_node() {
 void free_node(VMemNode* node) {
     VMemNodePool* pool = &node_pool;
     while (1) {
-        if (((uint64_t)pool < (uint64_t)node) && ((uint64_t)node < ((uint64_t)pool+PAGE_SIZE))) {
+        if (((uint64_t)pool < (uint64_t)node) && ((uint64_t)node < ((uint64_t)pool+PAGE_SIZE_))) {
             pool->stack_ptr++;
             pool->stack[pool->stack_ptr] = node;
             break;
@@ -302,7 +318,15 @@ void kfree(uint64_t addr, uint64_t size) {
 }
 
 void init_vmem() {
+    /* 
+    here the number of preallocated pools must be choosen carefully, 
+    since it 'preallocate_new_pool' relies on 'kmalloc', which itself depends
+    of the initialization of physical memory but 'init_pmem' is called after
+    init 'vmem'
+    */
     init_pool(&node_pool, 0x0, 0x0);
+    init_pool(&node_pool2, &node_pool, 0x0);
+    init_pool(&node_pool3, &node_pool2, 0x0);
     mem_info.KernelNode = node_pool.stack[node_pool.stack_ptr];
     mem_info.KernelNode->parent = 0x0;
     mem_info.KernelNode->size = 0x800000000000;

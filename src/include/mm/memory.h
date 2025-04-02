@@ -76,9 +76,9 @@ struct __attribute__((packed, aligned(4096))) VMemNodePool {
     VMemNodePool* next;
     int stack_ptr;
     uint8_t reserved[44];
-    VMemNode* stack[37448];
-    VMemNode pool[37448];
-};  // This fits exactly in one huge page
+    VMemNode* stack[72];
+    VMemNode pool[72];
+};  // This fits exactly into one page
 
 typedef struct __attribute__((packed)) MemoryInformation {
     uint64_t memory_size;
