@@ -91,10 +91,10 @@ void print(char* string) {
                 tm.x_position = 0;
             }
         } else if (string[i] == '\t') {
-            put_char(' ');
-            put_char(' ');
-            put_char(' ');
-            put_char(' ');
+            int n =  4 - (tm.x_position & 0b11);
+            for (int i = 0; i < n; i++) {
+                put_char(' ');
+            }
         } else {
             put_char(string[i]);
         }

@@ -256,6 +256,23 @@ typedef struct __attribute__((packed)) NVME_ConfigSpace {
 
 typedef struct NVME_IRQ_Mapping NVME_IRQ_Mapping;
 
+/*Completion Queue Status Field*/
+#define NVME_STATUS_DNR                 (1 << 15)       /*Do Not Retry*/
+#define NVME_STATUS_M                   (1 << 14)       /*More*/
+#define NVME_STATUS_CRD                 (0b11 << 12)    /*Command Retry Delay*/
+#define NVME_STATUS_CRDT1               (0b01 << 12)    /*Command Retry Delay Time 1*/
+#define NVME_STATUS_CRDT2               (0b10 << 12)    /*Command Retry Delay Time 2*/
+#define NVME_STATUS_CRDT3               (0b11 << 12)    /*Command Retry Delay Time 3*/
+#define NVME_STATUS_SCT                 (0b111 << 9)    /*Status Code Type*/
+#define NVME_STATUS_SC                  (0xff << 1)     /*Status Code*/
+/*Status Code Type Values*/
+#define NVME_SCT_GCS                    (0x0 << 9)      /*Generic Command Status*/
+#define NVME_SCT_CSS                    (0x1 << 9)      /*Command Specific Status*/
+#define NVME_SCT_MDIE                   (0x2 << 9)      /*Media and Data Integrity Errors*/
+#define NVME_SCT_PRS                    (0x3 << 9)      /*Path Related Status*/
+#define NVME_SCT_VS                     (0x7 << 9)      /*Vendor Specific*/
+
+
 static inline ControllerProperties* get_controller_properties(volatile PCI_DEV* device) {
     return ((NVME_ConfigSpace*)(device->driver_config_space))->CP;
 }

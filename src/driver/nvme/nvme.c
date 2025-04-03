@@ -8,9 +8,46 @@
 
 void check_completion_status(NVME_CompletionQueueEntry* entry) {
     if ((entry->Status >> 1) != 0x0) {
-        print("ERROR: Error Code in completion status");
-        printhex(entry->Status >>1);
-        //TODO: recover if possible
+        print("\nERROR: \tError Code in completion status\n");
+        if (entry->Status & NVME_STATUS_DNR) {
+            print("\t\tDo Not Retry\n");
+        } else {
+            switch (entry->Status & NVME_STATUS_CRD) {
+            case NVME_STATUS_CRDT1:
+                print("\t\tDelay Time 1\n");
+                break;
+            case NVME_STATUS_CRDT2:
+                print("\t\tDelay Time 1\n");
+                break;
+            case NVME_STATUS_CRDT3:
+                print("\t\tDelay Time 1\n");
+                break;
+            }
+        }
+        if (entry->Status & NVME_STATUS_M) {
+            print("\t\tMore\n");
+        }
+        switch (entry->Status & NVME_STATUS_SCT) {
+        case NVME_SCT_GCS:
+            print("\t\tGeneric Command Status\n");
+            break;
+        case NVME_SCT_CSS:
+            print("\t\tCommand Specific Status\n");
+            break;
+        case NVME_SCT_MDIE:
+            print("\t\tMedia and Integrity Errors\n");
+            break;
+        case NVME_SCT_PRS:
+            print("\t\tPath Related Status\n");
+            break;
+        case NVME_SCT_VS:
+            print("\t\tVendor Specific\n");
+            break;
+        default:
+            print("\t\tUnknown Status Type\n");
+            break;
+        }
+        //TODO: try to recover ERROR
         while(1);
     }
     return;
@@ -385,7 +422,18 @@ void enable_interrupts(volatile PCI_DEV* device) {
         print("ERROR: Failed to request irq");
         while(1);
     }
-    enable_MSIX(device, irq);
+    if (msix_support(device)) {
+        print("ERROR: NVMe Controller does not Support MSI-X\n");
+        while(1);
+    }
+    msix_setup_table(device);
+    msix_configure_vector(device, 0x0, 0x0, irq);
+    msix_configure_vector(device, 0x1, 0x0, irq);
+    msix_enable(device);
+    msix_unmask_vector(device, 0x0);
+    msix_unmask_vector(device, 0x1);
+    msix_unmask_function(device);
+    msix_enable(device);
 }
 
 void init_nvme_controller(volatile PCI_DEV* device) {

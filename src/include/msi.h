@@ -15,5 +15,13 @@ typedef struct __attribute__((packed)) MSIX_TableEntry {
     uint32_t Vector_Control;
 } MSIX_TableEntry;
 
+int msix_support(volatile PCI_DEV* device);
+void msix_enable(volatile PCI_DEV* device);
+void msix_mask_vector(volatile PCI_DEV* device, int vector);
+void msix_unmask_vector(volatile PCI_DEV* device, int vector);
+void msix_unmask_function(volatile PCI_DEV* device);
+void msix_mask_function(volatile PCI_DEV* device);
+void msix_configure_vector(volatile PCI_DEV* device, int vector, int apic_id, int irq);
+void msix_setup_table(volatile PCI_DEV* device);
 void enable_MSIX(volatile PCI_DEV* device, uint32_t irq);
 #endif

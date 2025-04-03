@@ -272,6 +272,7 @@ void check_device(MCFG_entry* entry, int bus, int slot) {
         return;
     }
     if (device->Header_Type & (1 << 7)) {
+        add_device(device, bus, slot, func);
         for (func = 1; func < 8; func++) {
             PCIHeader* device = (PCIHeader*)((uint64_t)(entry->base_address) + (bus << 20 | slot << 15 | func << 12));
             if (device->Vendor_ID == 0xffff) {
@@ -300,5 +301,4 @@ void enumerate_devices() {
             }
         }
     }
-    printhex(device_list.number_devices);
 }
