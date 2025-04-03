@@ -2,6 +2,8 @@
 #define CRC
 #include "../../src/include/uint.h"
 
+#define CRC32_SEED              0x0
+
 #define CRC32_POLYNOMIAL        0xedb88320
 #define CRC32C_POLYNOMIAL       0x1EDC6F41 
 

@@ -5,6 +5,8 @@
 #include "../../src/include/pci.h"
 #include "../../src/include/mp.h"
 
+#define SECTOR_SIZE              0x200
+
 #define SUBMISSION_QUEUE_ENTRY_SIZE     64
 #define COMPLETION_QUEUE_ENTRY_SIZE     16
 
@@ -278,6 +280,17 @@ typedef struct NVME_IRQ_Mapping NVME_IRQ_Mapping;
 #define NVME_SCT_MDIE                   (0x2 << 9)      /*Media and Data Integrity Errors*/
 #define NVME_SCT_PRS                    (0x3 << 9)      /*Path Related Status*/
 #define NVME_SCT_VS                     (0x7 << 9)      /*Vendor Specific*/
+/*Generic Command Status Values*/
+#define NVME_GCS_SUCCESS                0x00
+#define NVME_GCS_INVALID_OPCODE         0x01
+#define NVME_GCS_INVALID_FIELD          0x02
+#define NVME_GCS_COMMAMD_ID_CONFLICT    0x03
+#define NVME_GCS_DATA_TRANSFER_ERROR    0x04
+#define NVME_GCS_POWER_LOSS             0x05
+#define NVME_GCS_INTERNAL_ERROR         0x06
+#define NVME_GCS_COMMAND_ABORT          0x07
+#define NVME_GCS_SQ_DELETION            0x08
+// continue....
 
 
 static inline ControllerProperties* get_controller_properties(volatile PCI_DEV* device) {
@@ -290,6 +303,7 @@ static inline NVME_ConfigSpace* get_nvme_config_space(volatile PCI_DEV* device) 
 
 void init_nvme_controller(volatile PCI_DEV* device);
 void test_read(volatile PCI_DEV* device);
+uint16_t read_command(volatile PCI_DEV* device, int y, uint64_t buffer, uint64_t metadata, uint64_t slba, uint16_t nlb, uint32_t nsid);
 void set_prp(NVME_SubmissionQueueEntry* cmd, void* buffer, uint32_t size);
 uint16_t pop_cid(NVME_ConfigSpace* cs);
 void ring_submission_queue_tail_doorbell(volatile PCI_DEV* device, int y);

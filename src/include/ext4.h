@@ -1,6 +1,8 @@
 #ifndef EXT4_H
 #define EXT4_H
 #include "../../src/include/uint.h"
+#include "../../src/include/pci.h"
+#include "../../src/include/gpt.h"
 
 #define MAGIC							0xef53
 #define SUPERBLOCK_OFFSET				0x2
@@ -47,6 +49,11 @@
 #define EXT4_FEATURE_INCOMPAT_INLINE_DATA		0x8000 /* data in inode */
 #define EXT4_FEATURE_INCOMPAT_ENCRYPT			0x10000
 #define EXT4_FEATURE_INCOMPAT_CASEFOLD			0x20000
+
+
+
+#define EXT4_NO_CHECKSUM        0x0
+#define EXT4_CRC32C_CHECKSUM    0x1
 
 typedef struct __attribute__((packed)) Superblock {
     uint32_t	inodes_count;		    /* Inodes count */
@@ -241,4 +248,7 @@ typedef struct __attribute__((packed)) Inode {
 	uint32_t  				version_hi;		/* high 32 bits for 64-bit version */
 	uint32_t				projid;			/* Project ID */
 } Inode;
+
+
+void mount_filesystem(volatile PCI_DEV* device, PartitionEntry* partition);
 #endif

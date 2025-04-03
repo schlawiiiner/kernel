@@ -6,6 +6,30 @@
 #include "../../../src/include/apic.h"
 #include "../../../src/include/interrupts.h"
 
+void generic_command_status(uint16_t status) {
+    switch ((status >> 1) & 0xff) {
+    case NVME_GCS_SUCCESS:
+        print("\t\tSuccess\n");
+        break;
+    case NVME_GCS_INVALID_OPCODE:
+        print("\t\tInvalid Opcode\n");
+        break;
+    case NVME_GCS_INVALID_FIELD:
+        print("\t\tInvalid Field in Command\n");
+        break;
+    case NVME_GCS_COMMAMD_ID_CONFLICT:
+        print("\t\tCommand ID Conflict\n");
+        break;
+    case NVME_GCS_DATA_TRANSFER_ERROR:
+        print("\t\tData Transfer Error\n");
+        break;
+    default:
+        print("ERROR: Unknown Error\n");
+        break;
+    }
+}
+
+
 void check_completion_status(NVME_CompletionQueueEntry* entry) {
     if ((entry->Status >> 1) != 0x0) {
         print("\nERROR: \tError Code in completion status\n");
@@ -30,6 +54,7 @@ void check_completion_status(NVME_CompletionQueueEntry* entry) {
         switch (entry->Status & NVME_STATUS_SCT) {
         case NVME_SCT_GCS:
             print("\t\tGeneric Command Status\n");
+            generic_command_status(entry->Status);
             break;
         case NVME_SCT_CSS:
             print("\t\tCommand Specific Status\n");

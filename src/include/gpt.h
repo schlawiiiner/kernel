@@ -1,5 +1,5 @@
 #ifndef GPT_H
-#define GPT
+#define GPT_H
 #include "../../src/include/uint.h"
 
 #define GPT_SIGNATURE           0x5452415020494645
