@@ -5,7 +5,7 @@
 #include "../../src/include/mm/memory.h"
 #include "../../src/include/apic.h"
 #include "../../src/include/interrupts.h"
-
+#include "../../src/include/io.h"
 volatile CPUs* cpus __attribute__((section(".sysvar")));
 TaskQueue task_queue __attribute__((section(".sysvar")));
 
@@ -150,7 +150,7 @@ void enable_cpu_features(void) {
 
 CPU* read_per_core_struct(void) {
     CPU* cpu_struct;
-    asm volatile ("wrgsbase %0": "=r"(cpu_struct));
+    asm volatile ("rdgsbase %0": "=r"(cpu_struct));
     return cpu_struct;
 }
 

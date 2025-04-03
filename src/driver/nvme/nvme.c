@@ -61,51 +61,79 @@ void ring_submission_queue_tail_doorbell(volatile PCI_DEV* device, int y) {
     return;
 }
 
-NVME_CompletionQueueEntry* poll_cq(volatile PCI_DEV* device, int y) {
+void ring_completion_queue_head_doorbell(volatile PCI_DEV* device, int y) {
     NVME_ConfigSpace* cs = get_nvme_config_space(device);
-    Queue* q = &cs->Queues[y];
-    int id = q->CQH;
+    ControllerProperties* cp = get_controller_properties(device);
+    cs->Queues[y].CQH++;
+    cp->DBLR[y].CQyHDBL = cs->Queues[y].CQH;
+    return;
+}
+
+/*
+'poll_cq' relies on the assumption that it is called right after the command was issued
+if the CID already is assigned to another command it results in undefined behaviour, 
+although this is very unlikely because the CID are allocated with the policy FIFO
+*/
+void poll_cq(volatile PCI_DEV* device, int cid) {
+    NVME_ConfigSpace* cs = get_nvme_config_space(device);
     int timeout = 0;
+    volatile uint8_t* bitmap = &(cs->CID_bitmap[cid >> 3]);
     while(1) {
-        if (id == 0) {
-            if ((q->CQE[id].Status & 0x1) != (q->CQE[id+1].Status & 0x1)) {
-                q->CQH++;
-                break;
-            }
-        } else {
-            if ((q->CQE[id].Status & 0x1) == (q->CQE[id-1].Status & 0x1)) {
-                q->CQH++;
-                break;
-            }
-        }
-        if (timeout > 0x10000000) {
-            print("ERROR: timeout while polling ACQ");
-            while(1);
+        if (!(*bitmap & (1 << (cid & 0b111)))) {
+            return;
         }
         timeout++;
+        if (timeout > 0x1000000) {
+            print("ERROR: timeout while polling CID: ");
+            printhex(cid);
+            while(1);
+        }
     }
-    return q->CQE + id;
+}
+
+NVME_CompletionQueueEntry* poll_cq_entry(volatile PCI_DEV* device, int cid, int y) {
+    poll_cq(device, cid);
+    NVME_ConfigSpace* cs = get_nvme_config_space(device);
+    int current_stack_idx = cs->Queues[y].CQH;
+    for (int i = current_stack_idx; i >= 0; i--) {
+        if (cs->Queues[y].CQE[i].Command_Identifier == cid) {
+            return &(cs->Queues[y].CQE[i]);
+        }
+    }
+    print("ERROR: Could not find Completion Queue Entry corresponding to CID: ");
+    printhex(cid);
+    while(1);
 }
 
 uint16_t pop_cid(NVME_ConfigSpace* cs) {
-    if ((cs->CID_stack_ptr >= cs->CID_stack_size) || (cs->CID_stack_ptr >= 0xffff)) {
+    if (cs->CID_dequeue == cs->CID_enqueue) {
         //stack is empty
-        print("CID stack is empty\n");
+        print("CID queue is empty\n");
         while(1);
     }
-    uint16_t cid = cs->CID_stack[cs->CID_stack_ptr];
-    cs->CID_stack_ptr++;
+    uint16_t cid = cs->CID_queue[cs->CID_dequeue];
+    cs->CID_dequeue++;
+    if (cs->CID_dequeue == cs->CID_queue_size) {
+        //wrap around
+        cs->CID_dequeue = 0x0;
+    }
+    cs->CID_bitmap[cid >> 3] |= (uint8_t)(1 << (cid & 0b111));
     return cid;
 }
 
 void push_cid(NVME_ConfigSpace* cs, uint16_t cid) {
-    if (cs->CID_stack_ptr <= 0x0) {
-        //stack is full
-        print("CID stack is full\n");
+    cs->CID_enqueue++;
+    if (cs->CID_enqueue == cs->CID_queue_size) {
+        //wrap around
+        cs->CID_enqueue = 0x0;
+    }
+    if (cs->CID_enqueue == cs->CID_dequeue) {
+        //queue is full
+        print("CID queue is full\n");
         while(1);
     }
-    cs->CID_stack_ptr--;
-    cs->CID_stack[cs->CID_stack_ptr] = cid;
+    cs->CID_queue[cs->CID_enqueue] = cid;
+    cs->CID_bitmap[cid >> 3] &= ~(uint8_t)(1 << (cid & 0b111));
     return;
 }
 
@@ -217,14 +245,15 @@ void set_arbitration_mechanism(volatile PCI_DEV* device) {
 
 void init_cid_stack(volatile PCI_DEV* device) {
     NVME_ConfigSpace *cs = get_nvme_config_space(device);
-    cs->CID_stack_size = cs->Queues[0].CQS;
-    if (cs->CID_stack_size > 0x10000) {
-        cs->CID_stack_size = 0x10000;
+    cs->CID_queue_size = PAGE_SIZE_/sizeof(uint16_t);
+    cs->CID_dequeue = 0;
+    cs->CID_enqueue = cs->CID_queue_size - 1;
+    cs->CID_queue = (uint16_t*)malloc((uint64_t)(sizeof(uint16_t)*cs->CID_queue_size));
+    for (int cid = 0; cid < cs->CID_queue_size; cid++) {
+        cs->CID_queue[cid] = (uint16_t)cid;
     }
-    cs->CID_stack_ptr = 0;
-    cs->CID_stack = (uint16_t*)malloc((uint64_t)(sizeof(uint16_t)*cs->CID_stack_size));
-    for (int cid = 0; cid < cs->CID_stack_size; cid++) {
-        cs->CID_stack[cid] = (uint16_t)cid;
+    for (int i = 0; i < sizeof(cs->CID_bitmap); i++) {
+        cs->CID_bitmap[i] = 0x0;
     }
     return;
 }
@@ -296,7 +325,7 @@ uint16_t set_features_command(volatile PCI_DEV* device, void* buffer_vaddr, uint
 }
 
 
-void create_iocq_command(volatile PCI_DEV* device, void* buffer, uint16_t qsize, uint16_t qid, uint16_t iv) {
+uint16_t create_iocq_command(volatile PCI_DEV* device, void* buffer, uint16_t qsize, uint16_t qid, uint16_t iv) {
     NVME_ConfigSpace* cs = get_nvme_config_space(device);
     NVME_SubmissionQueueEntry* cmd = cs->Queues[0].SQE + cs->Queues[0].SQT;
     cmd->Opcode = 0x5;
@@ -307,9 +336,10 @@ void create_iocq_command(volatile PCI_DEV* device, void* buffer, uint16_t qsize,
     cmd->CDW[1] = (iv << 16) | 0b11;            // PC and IEN set by default
     cmd->CDW[2] = 0x0;
     ring_submission_queue_tail_doorbell(device, 0x0);
+    return cmd->Command_ID;
 }
 
-void create_iosq_command(volatile PCI_DEV* device, void* buffer, uint16_t qsize, uint16_t qid, uint16_t cqid) {
+uint16_t create_iosq_command(volatile PCI_DEV* device, void* buffer, uint16_t qsize, uint16_t qid, uint16_t cqid) {
     NVME_ConfigSpace* cs = get_nvme_config_space(device);
     NVME_SubmissionQueueEntry* cmd = cs->Queues[0].SQE + cs->Queues[0].SQT;
     cmd->Opcode = 0x1;
@@ -319,17 +349,18 @@ void create_iosq_command(volatile PCI_DEV* device, void* buffer, uint16_t qsize,
     cmd->CDW[0] = ((qsize/sizeof(NVME_CompletionQueueEntry) - 1) << 16) | qid; //TODO QUEUE SIZE IN ENTRIES OR IN BYTE, CURRENTLY: ENRIES
     cmd->CDW[1] = (cqid << 16) | 0b01;            // PC set by default
     ring_submission_queue_tail_doorbell(device, 0x0);
+    return cmd->Command_ID;
 }
 
 void identify_namespaces(volatile PCI_DEV* device) {
     uint32_t* namespace_list = (uint32_t*)malloc(0x1000);
-    identify_command(device, namespace_list, 0x2, 0x0, 0x0, 0x0, 0x0, 0x0);
-    check_completion_status(poll_cq(device, 0));
+    uint16_t cid = identify_command(device, namespace_list, 0x2, 0x0, 0x0, 0x0, 0x0, 0x0);
+    poll_cq(device, cid);
     int i = 0;
     while(namespace_list[i] != 0x0) {
         IdentifyNamespaceDataStructure* nsds = (IdentifyNamespaceDataStructure*)malloc(0x1000);
-        identify_command(device, nsds, 0x0, namespace_list[i], 0x0, 0x0, 0x0, 0x0);
-        check_completion_status(poll_cq(device, 0));
+        cid = identify_command(device, nsds, 0x0, namespace_list[i], 0x0, 0x0, 0x0, 0x0);
+        poll_cq(device, cid);
         free((uint64_t)nsds, 0x1000);
         i++;
     }
@@ -347,8 +378,7 @@ void configure_io_queues(volatile PCI_DEV* device, int number) {
     cmd->CDW[1] = ((number-1) << 16) | (number-1);
     cmd->CDW[4] = 0x0;
     ring_submission_queue_tail_doorbell(device, 0x0);
-    NVME_CompletionQueueEntry* entry = poll_cq(device, 0);
-    check_completion_status(entry);
+    NVME_CompletionQueueEntry* entry = poll_cq_entry(device, cmd->Command_ID, 0x0);
     uint32_t num = entry->CDW[0];
     uint32_t nsqa = (uint16_t)num + 1;
     uint32_t ncqa = (uint16_t)(num >> 16) + 1; 
@@ -360,8 +390,8 @@ void configure_io_queues(volatile PCI_DEV* device, int number) {
     cs->Queues[1].CQE = (NVME_CompletionQueueEntry*)buffer;
     cs->Queues[1].CQS = (int)(0x1000/sizeof(NVME_CompletionQueueEntry));
     cs->Queues[1].CQH = 0;
-    create_iocq_command(device, (void*)buffer, 0x1000, 1, 1);
-    check_completion_status(poll_cq(device, 0));
+    uint16_t cid = create_iocq_command(device, (void*)buffer, 0x1000, 1, 1);
+    poll_cq(device, cid);
 
     //create IOSQ
     uint64_t buffer1 = malloc(0x1000);
@@ -370,31 +400,31 @@ void configure_io_queues(volatile PCI_DEV* device, int number) {
     cs->Queues[1].SQS = (int)(0x1000/sizeof(NVME_SubmissionQueueEntry));
     cs->Queues[1].SQT = 0;
 
-    create_iosq_command(device, (void*)buffer1, 0x1000, 1, 1);
-    check_completion_status(poll_cq(device, 0));
+    cid = create_iosq_command(device, (void*)buffer1, 0x1000, 1, 1);
+    poll_cq(device, cid);
 }
 
 void set_io_command_set(volatile PCI_DEV* device) {
     ControllerProperties* cp = get_controller_properties(device);
     if ((cp->CAP >> 43) & 0x1) {
         uint64_t buffer = malloc(0x1000);
-        identify_command(device, (void*)buffer, 0x1C, 0x0, 0xffff, 0x0, 0x0, 0x0);
-        check_completion_status(poll_cq(device, 0));
+        uint16_t cid = identify_command(device, (void*)buffer, 0x1C, 0x0, 0xffff, 0x0, 0x0, 0x0);
+        poll_cq(device, cid);
         uint64_t* command_set_data_struct = (uint64_t*)buffer;
         //TODO: select command set first one is choosen
-        set_features_command(device, 0x0 ,0x19, 0x0, 0x0, 0x0);
-        check_completion_status(poll_cq(device, 0));
+        cid = set_features_command(device, 0x0 ,0x19, 0x0, 0x0, 0x0);
+        poll_cq(device, cid);
         uint64_t buffer2 = malloc(0x1000);
-        identify_command(device, (void*)buffer2, 0x7, 0x0, 0x0, 0x0, 0x0, 0x0);
-        check_completion_status(poll_cq(device, 0));
+        cid = identify_command(device, (void*)buffer2, 0x7, 0x0, 0x0, 0x0, 0x0, 0x0);
+        poll_cq(device, cid);
         uint32_t* nsid_list = (uint32_t*)buffer2;
         for (int i = 0; i < 1024; i++) {
             if (nsid_list[i] == 0x0) {
                 break;
             }
             uint64_t buffer3 = malloc(0x1000);
-            identify_command(device, (void*)buffer3, 0x0, nsid_list[i], 0x0, 0x0, 0x0, 0x0);
-            check_completion_status(poll_cq(device, 0));
+            cid = identify_command(device, (void*)buffer3, 0x0, nsid_list[i], 0x0, 0x0, 0x0, 0x0);
+            poll_cq(device, cid);
             IdentifyNamespaceDataStructure* insds = (IdentifyNamespaceDataStructure*)buffer3;
             free(buffer3, 0x1000);
         }
@@ -406,29 +436,43 @@ void set_io_command_set(volatile PCI_DEV* device) {
     cp->CC = (cp->CC & ~(uint32_t)(0b1111 << 16)) | 0b0110 << 16;
 }
 
-void isr(uint64_t* rsp, uint64_t irq) {
+
+void admin_isr(uint64_t* rsp, uint64_t irq) {
     volatile PCI_DEV* device = get_device_mapped((uint8_t)irq);
-    
+    NVME_ConfigSpace* cs = get_nvme_config_space(device);
+    NVME_CompletionQueueEntry* entry = &(cs->Queues[0].CQE[cs->Queues[0].CQH]);
+    check_completion_status(entry);
+    ring_completion_queue_head_doorbell(device, 0x0);
+    push_cid(cs, entry->Command_Identifier);
+    send_EOI();
+}
+void io_isr(uint64_t* rsp, uint64_t irq) {
+    volatile PCI_DEV* device = get_device_mapped((uint8_t)irq);
+    NVME_ConfigSpace* cs = get_nvme_config_space(device);
+    NVME_CompletionQueueEntry* entry = &(cs->Queues[1].CQE[cs->Queues[1].CQH]);
+    check_completion_status(entry);
+    ring_completion_queue_head_doorbell(device, 0x1 + get_apic_id());
+    push_cid(cs, entry->Command_Identifier);
     send_EOI();
 }
 
+
 void enable_interrupts(volatile PCI_DEV* device) {
-    if (!device->msix_cap) {
-        print("ERROR: Device does not support MSI-X");
-        while(1);
-    }
-    uint8_t irq = map_isr(isr, device);
-    if (!irq) {
-        print("ERROR: Failed to request irq");
-        while(1);
-    }
     if (msix_support(device)) {
         print("ERROR: NVMe Controller does not Support MSI-X\n");
         while(1);
     }
+    NVME_ConfigSpace* cs = get_nvme_config_space(device);
+    cs->admin_irq = map_isr(admin_isr, device);
+    cs->io_irq = map_isr(io_isr, device);
+
+    if (!cs->admin_irq || !cs->io_irq) {
+        print("ERROR: Failed to request irq");
+        while(1);
+    }
     msix_setup_table(device);
-    msix_configure_vector(device, 0x0, 0x0, irq);
-    msix_configure_vector(device, 0x1, 0x0, irq);
+    msix_configure_vector(device, 0x0, 0x0, cs->admin_irq);
+    msix_configure_vector(device, 0x1, 0x0, cs->io_irq);
     msix_enable(device);
     msix_unmask_vector(device, 0x0);
     msix_unmask_vector(device, 0x1);
@@ -449,7 +493,7 @@ void init_nvme_controller(volatile PCI_DEV* device) {
     device->driver_config_space = nvme_cs;
     nvme_cs->CP = (ControllerProperties*)(device->bars[0].base_address);
     
-    // in qemu MSI-X interrupts must be enabled before admin queues are allocated, this is currently a bug???
+    // in qemu MSI-X interrupts must be enabled before admin queues are allocated, this is currently a qemu bug???
     enable_interrupts(device);
     // reset controller
     disable(device);
@@ -460,8 +504,8 @@ void init_nvme_controller(volatile PCI_DEV* device) {
     
     init_cid_stack(device);
     IdentifyControllerDataStructure* icds = (IdentifyControllerDataStructure*)malloc(0x1000);
-    identify_command(device, icds, 0x1, 0x0, 0x0, 0x0, 0x0, 0x0);
-    check_completion_status(poll_cq(device, 0));
+    uint16_t cid = identify_command(device, icds, 0x1, 0x0, 0x0, 0x0, 0x0, 0x0);
+    poll_cq(device, cid);
     put_chars(icds->MN, 40);
     print("\n");
     set_io_command_set(device);

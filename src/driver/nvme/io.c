@@ -60,8 +60,8 @@ void read_inode_table(volatile PCI_DEV* device, Superblock* superblock, BlockGro
     uint64_t slba = ((uint64_t)descr->inode_table_hi << 32) | (descr->inode_table_lo);
     uint64_t buffer_size = superblock->inode_size*superblock->inodes_per_group;
     uint64_t buffer = malloc(buffer_size);
-    read_command(device, 1, buffer, 0x0, slba, buffer_size/SECTOR_SIZE, 0x1);
-    check_completion_status(poll_cq(device, 1));
+    uint16_t cid = read_command(device, 1, buffer, 0x0, slba, buffer_size/SECTOR_SIZE, 0x1);
+    poll_cq(device, cid);
 
     for (uint64_t inode_ptr = buffer; inode_ptr < inode_ptr + buffer_size; inode_ptr+=superblock->inode_size) {
         Inode* inode = (Inode*)inode_ptr;
@@ -80,8 +80,8 @@ void read_block_group_descriptors(volatile PCI_DEV* device, PartitionEntry* part
     uint64_t nlba = (size + SECTOR_SIZE - 1)/SECTOR_SIZE;
     BlockGroupDescriptor* block_group_descr = (BlockGroupDescriptor*)malloc(size);
     memset((uint64_t)block_group_descr, 0x0, size);
-    read_command(device, 1, (uint64_t)block_group_descr, 0x0, slba, nlba, 0x1);
-    check_completion_status(poll_cq(device, 1));
+    uint16_t cid = read_command(device, 1, (uint64_t)block_group_descr, 0x0, slba, nlba, 0x1);
+    poll_cq(device, cid);
 
     for (uint64_t i = 0; i < block_group_count; i++) {
         read_inode_table(device, superblock, block_group_descr + i);
@@ -93,8 +93,8 @@ void mount_filesystem(volatile PCI_DEV* device, PartitionEntry* partition) {
     Superblock* superblock = (Superblock*)malloc(sizeof(Superblock));
     memset((uint64_t)superblock, 0x0, sizeof(Superblock));
     uint64_t slba = partition->Starting_LBA + SUPERBLOCK_OFFSET;
-    read_command(device, 1, (uint64_t)superblock, 0x0, slba, nlb, 0x1);
-    check_completion_status(poll_cq(device, 1));
+    uint16_t cid = read_command(device, 1, (uint64_t)superblock, 0x0, slba, nlb, 0x1);
+    poll_cq(device, cid);
     if (superblock->magic != MAGIC) {
         print("ERROR: Magic Number wrong\n");
         return;
@@ -117,8 +117,8 @@ void read_partition_table(volatile PCI_DEV* device, PartitionTableHeader* header
     uint16_t nlb = size/512;
     uint64_t buffer = malloc(size);
     memset(buffer, 0x0, size);
-    read_command(device, 1, buffer, 0x1, header->Starting_LBA_Partition_Table, nlb, 0x1); //TODO: if nlb instead of 0x1 then ERROR Status
-    check_completion_status(poll_cq(device, 1));
+    uint16_t cid = read_command(device, 1, buffer, 0x1, header->Starting_LBA_Partition_Table, nlb, 0x1); //TODO: if nlb instead of 0x1 then ERROR Status
+    poll_cq(device, cid);
 
     if (header->Checksum_Partition_Entries != calculate_crc32((void*)buffer, size, CRC32_SEED)) {
         print("ERROR: Invalid Checksum");
@@ -152,8 +152,8 @@ void read_partition_table(volatile PCI_DEV* device, PartitionTableHeader* header
 void test_read(volatile PCI_DEV* device) {
     uint64_t buffer = malloc(0x1000);
     uint64_t metadata = malloc(0x1000);
-    read_command(device, 1, buffer, metadata, 0x1, 0x0, 0x1);
-    check_completion_status(poll_cq(device, 1));
+    uint16_t cid =  read_command(device, 1, buffer, metadata, 0x1, 0x0, 0x1);
+    poll_cq(device, cid);
     PartitionTableHeader* header = (PartitionTableHeader*)buffer;
     if (header->Signature != GPT_SIGNATURE) {
         print("ERROR: GPT Signature wrong");

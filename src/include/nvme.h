@@ -3,6 +3,7 @@
 #include "../../src/include/uint.h"
 #include "../../src/include/graphics.h"
 #include "../../src/include/pci.h"
+#include "../../src/include/mp.h"
 
 #define SUBMISSION_QUEUE_ENTRY_SIZE     64
 #define COMPLETION_QUEUE_ENTRY_SIZE     16
@@ -246,11 +247,17 @@ typedef struct __attribute__((packed)) Queue {
     int CQH;
 } Queue;
 
+/*This is a driver specific struct*/
 typedef struct __attribute__((packed)) NVME_ConfigSpace {
     ControllerProperties* CP;
-    uint16_t* CID_stack;
-    int CID_stack_ptr;
-    int CID_stack_size;
+    uint8_t admin_irq;
+    uint8_t io_irq;
+    uint8_t reserved[2];
+    int CID_dequeue;
+    int CID_enqueue;
+    int CID_queue_size;         /*currently hardcoded to PAGE_SIZE_*/
+    uint16_t* CID_queue;       
+    uint8_t CID_bitmap[0x100];  /*used for polling, 0x100 = CID_stack_size/sizeof(uint16_t)/sizeof(uint8_t)*/
     Queue Queues[2];
 } NVME_ConfigSpace;
 
@@ -287,5 +294,5 @@ void set_prp(NVME_SubmissionQueueEntry* cmd, void* buffer, uint32_t size);
 uint16_t pop_cid(NVME_ConfigSpace* cs);
 void ring_submission_queue_tail_doorbell(volatile PCI_DEV* device, int y);
 void check_completion_status(NVME_CompletionQueueEntry* entry);
-NVME_CompletionQueueEntry* poll_cq(volatile PCI_DEV* device, int y);
+void poll_cq(volatile PCI_DEV* device, int cid);
 #endif

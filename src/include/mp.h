@@ -80,5 +80,6 @@ void init_cpus(void);
 void switch_cpu(int cpu_number);
 void assign_per_core_struct(uint32_t apic_id);
 void enable_cpu_features(void);
+uint8_t get_apic_id(void);
 extern volatile CPUs* cpus;
 #endif
