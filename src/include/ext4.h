@@ -249,6 +249,21 @@ typedef struct __attribute__((packed)) Inode {
 	uint32_t				projid;			/* Project ID */
 } Inode;
 
+typedef struct __attribute__((packed)) InodeCache {
+	uint64_t inode_number;
+	uint8_t used;
+	uint8_t dirty;
+	uint16_t mode;
+	uint32_t uid;
+	uint32_t gid;
+	uint16_t link_count;
+	uint16_t reserved1;
+	uint64_t block_count;
+	uint32_t flags;
+	uint32_t block_ptr[15];
+	uint8_t reserved2[0x20]; // align it to 0x80
+} InodeCache;
+
 
 void mount_filesystem(volatile PCI_DEV* device, PartitionEntry* partition);
 #endif
