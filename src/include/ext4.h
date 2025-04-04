@@ -249,6 +249,44 @@ typedef struct __attribute__((packed)) Inode {
 	uint32_t				projid;			/* Project ID */
 } Inode;
 
+typedef struct __attribute__((packed)) DirectoryEntry {
+	uint32_t inode;
+	uint16_t length;
+	uint8_t name_len;
+	uint8_t file_type;
+	char name[];
+} DirectoryEntry;
+
+#define EH_MAGIC					0xF30A
+
+typedef struct __attribute__((packed)) ExtendHeader {
+	uint16_t magic;
+	uint16_t entries;
+	uint16_t max;
+	uint16_t depth;
+	uint32_t generation;
+} ExtendHeader;
+
+typedef struct __attribute__((packed)) Extend {
+	uint32_t block;
+	uint16_t len;
+	uint16_t start_hi;
+	uint32_t start_lo;
+} Extend;
+
+
+/*DRIVER SPECIFIC STRUCTS*/
+
+typedef struct __attribute__((packed)) ext4_Filesystem {
+	volatile PCI_DEV* device;
+	uint64_t slba;
+	uint64_t block_size;
+	uint32_t inodes_per_group;
+	uint16_t inodes_size;
+	uint16_t reserved;
+	uint64_t sector_size;
+} ext4_Filesystem;
+
 typedef struct __attribute__((packed)) InodeCache {
 	uint64_t inode_number;
 	uint8_t used;

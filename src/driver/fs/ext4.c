@@ -9,6 +9,14 @@
 InodeCache* icache_l1[EXT4_ICACHE_SIZE] __attribute__((section(".sysvar")));
 InodeCache* icache_l2[EXT4_ICACHE_SIZE] __attribute__((section(".sysvar")));
 
+uint64_t block_to_sector(ext4_Filesystem* fs, uint32_t block) {
+    return block*fs->block_size/fs->sector_size + fs->slba;
+}
+
+void read_lba(volatile PCI_DEV* device, uint64_t slba, uint64_t nlba, void* buffer) {
+    uint16_t cid = read_command(device, 1, (uint64_t)buffer, 0x0, slba, nlba, 0x1);
+    poll_cq(device, cid);
+}
 
 int hash_inode(uint64_t inode_number) {
     return inode_number % EXT4_ICACHE_SIZE;
@@ -42,7 +50,7 @@ InodeCache* cache_inode(Inode* inode, uint64_t inode_number) {
     return inode_cache;
 }
 
-InodeCache* fetch_inode(volatile PCI_DEV* device, PartitionEntry* partition, Superblock* superblock, uint64_t inode_number) {
+InodeCache* fetch_inode(ext4_Filesystem* fs, uint64_t inode_number) {
     int index = hash_inode(inode_number);
 
     InodeCache* inode_cached = (InodeCache*)0x0;
@@ -66,35 +74,83 @@ InodeCache* fetch_inode(volatile PCI_DEV* device, PartitionEntry* partition, Sup
     /*Now we need to fetch the inode from the Disk*/
 
     
-    uint32_t block_group_index = (inode_number - 1) / superblock->inodes_per_group;
-    uint32_t inode_index = (inode_number - 1) % superblock->inodes_per_group;
+    uint32_t block_group_index = (inode_number - 1) / fs->inodes_per_group;
+    uint32_t inode_index = (inode_number - 1) % fs->inodes_per_group;
 
     /*Read Block Group Descriptor*/
 
-    uint64_t block_group_offset = (1024 << superblock->log_block_size) + block_group_index*sizeof(BlockGroupDescriptor);
-    uint64_t block_group_slba = partition->Starting_LBA + block_group_offset/SECTOR_SIZE;
+    uint64_t block_group_offset = fs->block_size + block_group_index*sizeof(BlockGroupDescriptor);
+    uint64_t block_group_slba = fs->slba + block_group_offset/SECTOR_SIZE;
     uint64_t offset = block_group_offset % SECTOR_SIZE;
     uint64_t buffer = malloc(SECTOR_SIZE);
-    uint16_t cid = read_command(device, 1, (uint64_t)buffer, 0x0, block_group_slba, 0x0, 0x1);
-    poll_cq(device, cid);
+    read_lba(fs->device, block_group_slba, 0x0, (void*)buffer);
     BlockGroupDescriptor* descr = (BlockGroupDescriptor*)(buffer + offset);
 
     /*Read Inode*/
 
     uint64_t inode_table = (((uint64_t)descr->inode_table_hi << 32) | (descr->inode_table_lo));
-    uint64_t inode_offset = inode_index*superblock->inode_size;
-    uint64_t inode_slba = ((inode_table * (1024 << superblock->log_block_size) + inode_offset)/SECTOR_SIZE) + partition->Starting_LBA;
-    uint64_t inode_offset_offset = ((inode_table * (1024 << superblock->log_block_size) + inode_offset) % SECTOR_SIZE);
+    uint64_t inode_offset = inode_index*fs->inodes_size;
+    uint64_t inode_slba = ((inode_table * fs->block_size + inode_offset)/SECTOR_SIZE) + fs->slba;
+    uint64_t inode_offset_offset = ((inode_table * fs->block_size + inode_offset) % SECTOR_SIZE);
 
     uint64_t inode_buffer = malloc(SECTOR_SIZE);
-    uint16_t inode_cid = read_command(device, 1, (uint64_t)inode_buffer, 0x0, inode_slba, 0x0, 0x1);
-    poll_cq(device, inode_cid);
+    read_lba(fs->device, inode_slba, 0x0, (void*)inode_buffer);
     Inode* inode = (Inode*)(inode_buffer + inode_offset_offset);
 
     free(buffer, SECTOR_SIZE);
     free(inode_buffer, SECTOR_SIZE);
 
     return cache_inode(inode, inode_number);
+}
+
+
+DirectoryEntry* next_dir_entry(DirectoryEntry* dir) {
+    return (DirectoryEntry*)((uint64_t)dir + dir->length);
+}
+
+
+void list_directories(ext4_Filesystem* fs) {
+    InodeCache* root_inode = fetch_inode(fs, 2);
+    if (!(root_inode->flags & 0x80000)) {
+        print("ERROR:\tExtends Flag not set");
+        while(1);
+    }
+    ExtendHeader* eh = (ExtendHeader*)(root_inode->block_ptr);
+    if (eh->magic != EH_MAGIC) {
+        print("ERROR:\tExtends Magic wrong");
+        while(1);
+    }
+    if (eh->depth == 0) {
+        Extend* ee = (Extend*)((uint64_t)eh + sizeof(ExtendHeader));
+        uint64_t block = ((uint64_t)ee->start_hi << 32) | ee->start_lo;
+        uint64_t sector = block_to_sector(fs, block);
+        uint64_t buffer = malloc(SECTOR_SIZE);
+        read_lba(fs->device, sector, 0x1, buffer);
+        DirectoryEntry* dir = (DirectoryEntry*)buffer;
+        for (int i = 0; i < (root_inode->link_count + 10); i++) {
+            if (!dir->inode) {
+                break;
+            }
+            print(dir->name);
+            print("\t\t");
+            if (dir->length > 253) {
+                break;
+            }
+            dir = next_dir_entry(dir);
+        }
+        print("\n");
+    }
+}
+
+ext4_Filesystem* init_filesystem(volatile PCI_DEV* device, PartitionEntry* partition, Superblock* superblock) {
+    ext4_Filesystem* fs = (ext4_Filesystem*)malloc(sizeof(ext4_Filesystem));
+    fs->device = device;
+    fs->block_size = 1024 << superblock->log_block_size;
+    fs->sector_size = SECTOR_SIZE;
+    fs->inodes_per_group = superblock->inodes_per_group;
+    fs->inodes_size = superblock->inode_size;
+    fs->slba = partition->Starting_LBA;
+    return fs;
 }
 
 void mount_filesystem(volatile PCI_DEV* device, PartitionEntry* partition) {
@@ -116,8 +172,8 @@ void mount_filesystem(volatile PCI_DEV* device, PartitionEntry* partition) {
         print("ERROR: Wrong Checksum\n");
         return;
     }
-    InodeCache* inode = fetch_inode(device, partition, superblock, 2);
-    printhex(inode->mode);
-    print("\n");
+    ext4_Filesystem* fs = init_filesystem(device, partition, superblock);
+    list_directories(fs);
+    free(fs, sizeof(ext4_Filesystem));
     free((uint64_t)superblock, sizeof(Superblock));
 }
