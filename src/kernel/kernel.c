@@ -187,6 +187,7 @@ void kernelmain(BootInformation* multiboot_structure) {
     //load_TSS();
     //init_IOAPIC();
     enumerate_devices();
+    dump_devices_short();
     int device_count = get_device_number();
     for (int i = 0; i < device_count; i++) {
         volatile PCI_DEV* dev = get_device(i);

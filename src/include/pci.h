@@ -204,7 +204,11 @@ extern volatile PCI_DEV_List device_list;
 
 void enumerate_devices();
 void dump_devices();
+void dump_devices_short();
 void dump_capability(volatile PCI_DEV* device);
 volatile PCI_DEV* get_device(int id);
 int get_device_number();
+void dump_device(volatile PCI_DEV* device);
+void dump_device_short(volatile PCI_DEV* device);
+volatile PCI_DEV* search_device(uint8_t class_code);
 #endif

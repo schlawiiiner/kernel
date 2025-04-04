@@ -109,37 +109,183 @@ DirectoryEntry* next_dir_entry(DirectoryEntry* dir) {
 }
 
 
-void list_directories(ext4_Filesystem* fs) {
-    InodeCache* root_inode = fetch_inode(fs, 2);
-    if (!(root_inode->flags & 0x80000)) {
-        print("ERROR:\tExtends Flag not set");
+int is_absolute_path(char* path) {
+    if (path[0] == '/') {
+        return 0x1;
+    } else {
+        return 0x0;
+    }
+}
+
+int dir_name_length(char* path) {
+    int i = 0;
+    while(1) {
+        if (path[i] == '\0') {
+            //invalid
+            return 0x0;
+        } else if (path[i] == '/') {
+            return i;
+        }
+        i++;
+    }
+}
+
+char* get_filename(char* path) {
+    int i = 0;
+    char* name = 0x0;
+    while(1) {
+        if (*(path + i) == '/') {
+            name = path + i + 1;
+        } else if (*(path + i) == '\0') {
+            return name;
+        }
+        i++;
+    }
+}
+
+InodeCache* find_inode(ext4_Filesystem* fs, InodeCache* inode, char* name) {
+    if (!(inode->mode & 0x4000)) {
+        print("ERROR:\tNo Directory");
         while(1);
     }
-    ExtendHeader* eh = (ExtendHeader*)(root_inode->block_ptr);
+    if (!(inode->flags & 0x80000)) {
+        print("ERROR:\tExtents Flag not set");
+        while(1);
+    }
+    ExtentHeader* eh = (ExtentHeader*)(inode->block_ptr);
     if (eh->magic != EH_MAGIC) {
-        print("ERROR:\tExtends Magic wrong");
+        print("ERROR:\tExtents Magic wrong");
         while(1);
     }
     if (eh->depth == 0) {
-        Extend* ee = (Extend*)((uint64_t)eh + sizeof(ExtendHeader));
+        Extent* ee = (Extent*)((uint64_t)eh + sizeof(ExtentHeader));
         uint64_t block = ((uint64_t)ee->start_hi << 32) | ee->start_lo;
         uint64_t sector = block_to_sector(fs, block);
-        uint64_t buffer = malloc(SECTOR_SIZE);
-        read_lba(fs->device, sector, 0x1, buffer);
+        uint64_t buffer = malloc(fs->block_size);
+        read_lba(fs->device, sector, fs->block_size/fs->sector_size - 1, buffer);
+        DirectoryEntry* entry = (DirectoryEntry*)buffer;
+        for (int i = 0; i < (inode->link_count + 10); i++) {
+            if (!entry->inode) {
+                break;
+            }
+            if (compare_string(entry->name, name)) {
+                return fetch_inode(fs, entry->inode);
+            }
+            if (entry->length > 253) {
+                // This 'should'? indicate the end of the directory
+                break;
+            }
+            entry = next_dir_entry(entry);
+        }
+        free(buffer, fs->block_size);
+    }
+    return (InodeCache*)0x0;
+}
+
+void list_directories(ext4_Filesystem* fs, InodeCache* inode) {
+    if (!(inode->mode & 0x4000)) {
+        print("ERROR:\tNo Directory");
+        while(1);
+    }
+    if (!(inode->flags & 0x80000)) {
+        print("ERROR:\tExtents Flag not set");
+        while(1);
+    }
+    ExtentHeader* eh = (ExtentHeader*)(inode->block_ptr);
+    if (eh->magic != EH_MAGIC) {
+        print("ERROR:\tExtents Magic wrong");
+        while(1);
+    }
+    if (eh->depth == 0) {
+        Extent* ee = (Extent*)((uint64_t)eh + sizeof(ExtentHeader));
+        uint64_t block = ((uint64_t)ee->start_hi << 32) | ee->start_lo;
+        uint64_t sector = block_to_sector(fs, block);
+        uint64_t buffer = malloc(fs->block_size);
+        read_lba(fs->device, sector, fs->block_size/fs->sector_size - 1, buffer);
         DirectoryEntry* dir = (DirectoryEntry*)buffer;
-        for (int i = 0; i < (root_inode->link_count + 10); i++) {
+        print("\n");
+        for (int i = 0; i < (inode->link_count + 10); i++) {
             if (!dir->inode) {
                 break;
             }
             print(dir->name);
             print("\t\t");
             if (dir->length > 253) {
+                //This 'should'? indicate the end of the directory
                 break;
             }
             dir = next_dir_entry(dir);
         }
-        print("\n");
+        print("\n\n");
+        free(buffer, fs->block_size);
     }
+}
+
+InodeCache* change_directory(ext4_Filesystem* fs, InodeCache* inode, char* path) {
+    int i = 0;
+    if (is_absolute_path(path)) {
+        inode = fetch_inode(fs, 2);
+        i++;
+    }
+    while(1) {
+        if (path[i] == '\0') {
+            return inode;
+        }
+        int len = dir_name_length(path+i);
+        if (!len) {
+            print("ERROR:\tInvalid Path\n");
+            return (InodeCache*)0x0;
+        }
+        path[len+i] = '\0';
+        inode = find_inode(fs, inode, path+i);
+        path[len+i] = '/';
+        i+=len+1;
+    }    
+}
+
+
+File* load_file(ext4_Filesystem* fs, InodeCache* inode, char* path) {
+    char* filename = get_filename(path);
+    char copy = *filename;
+    *filename = '\0';
+    InodeCache* dir = change_directory(fs, inode, path);
+    if (!dir) {
+        print("ERROR:\tPath does not exist");
+        while(1);
+    }
+    *filename = copy;
+    InodeCache* file = find_inode(fs, dir, filename);
+    if (!file) {
+        print("ERROR:\tFile does not exist");
+        while(1);
+    }
+    if (!(file->mode & 0x8000)) {
+        print("ERROR:\tFile is no Regular File");
+        while(1);
+    }
+    if (!(file->flags & 0x80000)) {
+        print("ERROR:\tExtents Flag not set");
+        while(1);
+    }
+    ExtentHeader* eh = (ExtentHeader*)(file->block_ptr);
+    if (eh->magic != EH_MAGIC) {
+        print("ERROR:\tExtents Magic wrong");
+        while(1);
+    }
+    if (eh->depth == 0) {
+        Extent* ee = (Extent*)((uint64_t)eh + sizeof(ExtentHeader));
+        uint64_t block = ((uint64_t)ee->start_hi << 32) | ee->start_lo;
+        uint64_t sector = block_to_sector(fs, block);
+        uint64_t buffer = malloc(fs->block_size);
+        read_lba(fs->device, sector, fs->block_size/fs->sector_size - 1, buffer);
+
+        File* file_data = (File*)malloc(sizeof(File));
+        file_data->buffer = buffer;
+        file_data->size = fs->block_size;
+        return file_data;
+    }
+
+    return (File*)0x0;
 }
 
 ext4_Filesystem* init_filesystem(volatile PCI_DEV* device, PartitionEntry* partition, Superblock* superblock) {
@@ -173,7 +319,9 @@ void mount_filesystem(volatile PCI_DEV* device, PartitionEntry* partition) {
         return;
     }
     ext4_Filesystem* fs = init_filesystem(device, partition, superblock);
-    list_directories(fs);
+    list_directories(fs, fetch_inode(fs, 2));
+    File* file = load_file(fs, (InodeCache*)0x0, "/bin/main.elf");
+    uint8_t* buffer = file->buffer;
     free(fs, sizeof(ext4_Filesystem));
     free((uint64_t)superblock, sizeof(Superblock));
 }

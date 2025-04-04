@@ -223,28 +223,42 @@ void add_device(PCIHeader* device, int bus, int slot, int func) {
     device_list.number_devices++;
 }
 
-void dump_device(int id) {
-    if (id >= device_list.number_devices) {
-        print("Invalid device id");
-        return;
-    }
+void dump_device(volatile PCI_DEV* device) {
     print("-------------------------------------------\n");
     print("Vendor ID: ");
-    printhex(device_list.devices[id].vendor);
+    printhex(device->vendor);
     print("\nDevice ID: ");
-    printhex(device_list.devices[id].device);
+    printhex(device->device);
     print("\nClass    : ");
-    printhex(device_list.devices[id].class);
+    printhex(device->class);
     print("\n-------------------------------------------\n\n");
 
     write_string_to_serial("-------------------------------------------\n");
     write_string_to_serial("Vendor ID: ");
-    write_hex_to_serial(device_list.devices[id].vendor);
+    write_hex_to_serial(device->vendor);
     write_string_to_serial("\nDevice ID: ");
-    write_hex_to_serial(device_list.devices[id].device);
+    write_hex_to_serial(device->device);
     write_string_to_serial("\nClass    : ");
-    write_hex_to_serial(device_list.devices[id].class);
+    write_hex_to_serial(device->class);
     write_string_to_serial("\n-------------------------------------------\n\n");
+}
+
+void dump_device_short(volatile PCI_DEV* device) {
+    printhex(device->vendor);
+    print("\t");
+    printhex(device->device);
+    print("\t");
+    printhex(device->class);
+    print("\n");
+}
+
+volatile PCI_DEV* search_device(uint8_t class_code) {
+    for (int i = 0; i < device_list.number_devices; i++) {
+        if ((device_list.devices[i].class >> 16) == class_code) {
+            return (volatile PCI_DEV*)&(device_list.devices[i]);
+        }
+    }
+    return (volatile PCI_DEV*)0x0;
 }
 
 volatile PCI_DEV* get_device(int id) {
@@ -260,8 +274,14 @@ int get_device_number() {
 }
 
 void dump_devices() {
-    for (uint64_t i = 0; i < device_list.number_devices; i++) {
-        dump_device(i);
+    for (int i = 0; i < device_list.number_devices; i++) {
+        dump_device(device_list.devices + i);
+    }
+}
+
+void dump_devices_short() {
+    for (int i = 0; i < device_list.number_devices; i++) {
+        dump_device_short(device_list.devices + i);
     }
 }
 

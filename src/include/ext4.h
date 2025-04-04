@@ -259,20 +259,20 @@ typedef struct __attribute__((packed)) DirectoryEntry {
 
 #define EH_MAGIC					0xF30A
 
-typedef struct __attribute__((packed)) ExtendHeader {
+typedef struct __attribute__((packed)) ExtentHeader {
 	uint16_t magic;
 	uint16_t entries;
 	uint16_t max;
 	uint16_t depth;
 	uint32_t generation;
-} ExtendHeader;
+} ExtentHeader;
 
-typedef struct __attribute__((packed)) Extend {
+typedef struct __attribute__((packed)) Extent {
 	uint32_t block;
 	uint16_t len;
 	uint16_t start_hi;
 	uint32_t start_lo;
-} Extend;
+} Extent;
 
 
 /*DRIVER SPECIFIC STRUCTS*/
@@ -302,6 +302,10 @@ typedef struct __attribute__((packed)) InodeCache {
 	uint8_t reserved2[0x20]; // align it to 0x80
 } InodeCache;
 
+typedef struct __attribute__((packed)) File {
+	void* buffer;
+	uint64_t size;
+} File;
 
 void mount_filesystem(volatile PCI_DEV* device, PartitionEntry* partition);
 #endif

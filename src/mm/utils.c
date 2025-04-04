@@ -17,3 +17,14 @@ void memcopy(uint64_t* source, uint64_t* destination, int size) {
         destination[i] = source[i];
     }
 }
+
+int compare_string(char* str1, char* str2) {
+    int i = 0;
+    while(str1[i] == str2[i]) {
+        if (str1[i] == '\0') {
+            return 0x1;
+        }
+        i++;
+    }
+    return 0x0;
+}
