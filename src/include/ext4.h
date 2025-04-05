@@ -257,6 +257,16 @@ typedef struct __attribute__((packed)) DirectoryEntry {
 	char name[];
 } DirectoryEntry;
 
+#define DET_FILE_TYPE				0xDE
+
+typedef struct __attribute__((packed)) DirectoryEntryTail {
+	uint32_t inode_zero;
+	uint16_t lenght;
+	uint8_t name_len_zero;
+	uint8_t file_type_reserved;
+	uint32_t checksum;
+} DirectoryEntryTail;
+
 #define EH_MAGIC					0xF30A
 
 typedef struct __attribute__((packed)) ExtentHeader {
@@ -274,7 +284,6 @@ typedef struct __attribute__((packed)) Extent {
 	uint32_t start_lo;
 } Extent;
 
-
 /*DRIVER SPECIFIC STRUCTS*/
 
 typedef struct __attribute__((packed)) ext4_Filesystem {
@@ -283,8 +292,10 @@ typedef struct __attribute__((packed)) ext4_Filesystem {
 	uint64_t block_size;
 	uint32_t inodes_per_group;
 	uint16_t inodes_size;
-	uint16_t reserved;
+	uint16_t sectors_per_block;
 	uint64_t sector_size;
+	uint32_t seed;
+	uint32_t reserved;
 } ext4_Filesystem;
 
 typedef struct __attribute__((packed)) InodeCache {
@@ -299,13 +310,18 @@ typedef struct __attribute__((packed)) InodeCache {
 	uint64_t block_count;
 	uint32_t flags;
 	uint32_t block_ptr[15];
-	uint8_t reserved2[0x20]; // align it to 0x80
+	uint32_t generation;
+	uint8_t reserved2[28]; // align it to 0x80
 } InodeCache;
 
 typedef struct __attribute__((packed)) File {
 	void* buffer;
 	uint64_t size;
 } File;
+
+static inline uint64_t block_to_sector(ext4_Filesystem* fs, uint32_t block) {
+	return block*fs->sectors_per_block + fs->slba;
+}
 
 void mount_filesystem(volatile PCI_DEV* device, PartitionEntry* partition);
 #endif

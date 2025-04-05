@@ -55,9 +55,9 @@ uint32_t calculate_crc32(void* buffer, uint32_t size, uint32_t seed) {
 uint32_t calculate_crc32c(void* buffer, uint32_t size, uint32_t seed) {
     crc32c_init();
     const uint8_t *data = buffer;
-    uint32_t crc = seed ^ 0xffffffff;
+    uint32_t crc = seed;
     for (uint32_t i = 0; i < size; i++) {
         crc = (crc >> 8) ^ crc32c_table[(crc ^ data[i]) & 0xff];
     }
-    return crc ^ 0xffffffff;
+    return 0xffffffff - (crc ^ 0xffffffff);
 }

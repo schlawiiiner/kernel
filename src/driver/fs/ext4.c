@@ -9,10 +9,6 @@
 InodeCache* icache_l1[EXT4_ICACHE_SIZE] __attribute__((section(".sysvar")));
 InodeCache* icache_l2[EXT4_ICACHE_SIZE] __attribute__((section(".sysvar")));
 
-uint64_t block_to_sector(ext4_Filesystem* fs, uint32_t block) {
-    return block*fs->block_size/fs->sector_size + fs->slba;
-}
-
 void read_lba(volatile PCI_DEV* device, uint64_t slba, uint64_t nlba, void* buffer) {
     uint16_t cid = read_command(device, 1, (uint64_t)buffer, 0x0, slba, nlba, 0x1);
     poll_cq(device, cid);
@@ -33,6 +29,7 @@ InodeCache* cache_inode(Inode* inode, uint64_t inode_number) {
     inode_cache->link_count = inode->links_count;
     inode_cache->block_count = ((uint64_t)inode->osd2.linux2.l_blocks_high << 32) | inode->blocks_lo;
     inode_cache->flags = inode->flags;
+    inode_cache->generation = inode->generation;
     for (int i = 0; i < 15; i++) {
         inode_cache->block_ptr[i] = inode->block[i];
     }
@@ -162,7 +159,7 @@ InodeCache* find_inode(ext4_Filesystem* fs, InodeCache* inode, char* name) {
         uint64_t block = ((uint64_t)ee->start_hi << 32) | ee->start_lo;
         uint64_t sector = block_to_sector(fs, block);
         uint64_t buffer = malloc(fs->block_size);
-        read_lba(fs->device, sector, fs->block_size/fs->sector_size - 1, buffer);
+        read_lba(fs->device, sector, fs->sectors_per_block - 1, buffer);
         DirectoryEntry* entry = (DirectoryEntry*)buffer;
         for (int i = 0; i < (inode->link_count + 10); i++) {
             if (!entry->inode) {
@@ -181,6 +178,13 @@ InodeCache* find_inode(ext4_Filesystem* fs, InodeCache* inode, char* name) {
     }
     return (InodeCache*)0x0;
 }
+
+uint32_t dir_entries_checksum(ext4_Filesystem* fs, InodeCache* inode, void* dir_block) {
+    uint32_t crc = calculate_crc32c(&inode->inode_number, 4, fs->seed);
+    crc = calculate_crc32c(&inode->generation, 4, crc);
+    crc = calculate_crc32c(dir_block, fs->block_size - sizeof(DirectoryEntryTail), crc);
+    return crc;
+} 
 
 void list_directories(ext4_Filesystem* fs, InodeCache* inode) {
     if (!(inode->mode & 0x4000)) {
@@ -201,22 +205,44 @@ void list_directories(ext4_Filesystem* fs, InodeCache* inode) {
         uint64_t block = ((uint64_t)ee->start_hi << 32) | ee->start_lo;
         uint64_t sector = block_to_sector(fs, block);
         uint64_t buffer = malloc(fs->block_size);
-        read_lba(fs->device, sector, fs->block_size/fs->sector_size - 1, buffer);
+        read_lba(fs->device, sector, fs->sectors_per_block - 1, buffer);
         DirectoryEntry* dir = (DirectoryEntry*)buffer;
         print("\n");
-        for (int i = 0; i < (inode->link_count + 10); i++) {
+        uint64_t buffer_end = buffer + fs->block_size;
+        while((buffer_end - (uint64_t)dir) > sizeof(DirectoryEntryTail)) {
             if (!dir->inode) {
-                break;
+                //unused entry
+                dir = next_dir_entry(dir);
+                continue;
             }
             print(dir->name);
             print("\t\t");
-            if (dir->length > 253) {
-                //This 'should'? indicate the end of the directory
-                break;
-            }
             dir = next_dir_entry(dir);
         }
         print("\n\n");
+
+        /*Check Directory Entry Tail*/
+
+        DirectoryEntryTail* tail = (DirectoryEntryTail*)dir;
+        if ((buffer_end - (uint64_t)dir) != sizeof(DirectoryEntryTail)) {
+            print("ERROR:\tDirectory Entry Tail not alligned to correctly\n");
+        }
+        if (tail->inode_zero != 0) {
+            print("ERROR:\tDirectory Entry Tail Inode not zero\n");
+        }
+        if (tail->lenght != sizeof(DirectoryEntryTail)) {
+            print("ERROR:\tDirectory Entry Tail length not 12 bytes\n");
+        }
+        if (tail->name_len_zero != 0) {
+            print("ERROR:\tDirectory Entry Tail Lenght of file name not zero\n");
+        }
+        if (tail->file_type_reserved != DET_FILE_TYPE) {
+            print("ERROR:\tDirectory Entry Tail file type not 0xDE\n");
+        }
+        if (tail->checksum != dir_entries_checksum(fs, inode, (void*)buffer)) {
+            print("ERROR:\tDirectory leaf block checksum wrong\n");
+        }
+        printhex(sizeof(Inode));
         free(buffer, fs->block_size);
     }
 }
@@ -295,8 +321,15 @@ ext4_Filesystem* init_filesystem(volatile PCI_DEV* device, PartitionEntry* parti
     fs->sector_size = SECTOR_SIZE;
     fs->inodes_per_group = superblock->inodes_per_group;
     fs->inodes_size = superblock->inode_size;
+    fs->sectors_per_block = fs->block_size/fs->sector_size;
     fs->slba = partition->Starting_LBA;
+    fs->seed = calculate_crc32c(superblock->uuid, 16, CRC32_SEED);
     return fs;
+}
+
+int supports_features(uint32_t features) {
+    uint32_t driver_features = EXT4_FEATURE_INCOMPAT_FILETYPE | EXT4_FEATURE_INCOMPAT_EXTENTS | EXT4_FEATURE_INCOMPAT_64BIT;
+    return features & ~driver_features;
 }
 
 void mount_filesystem(volatile PCI_DEV* device, PartitionEntry* partition) {
@@ -314,10 +347,19 @@ void mount_filesystem(volatile PCI_DEV* device, PartitionEntry* partition) {
         print("ERROR: Unknown Checksum Type\n");
         return;
     }
-    if (superblock->checksum != (0xffffffff - calculate_crc32c(superblock, sizeof(Superblock)-sizeof(superblock->checksum), CRC32_SEED))) {
+    if (superblock->checksum != calculate_crc32c(superblock, sizeof(Superblock)-sizeof(superblock->checksum), CRC32_SEED)) {
         print("ERROR: Wrong Checksum\n");
         return;
     }
+    /*if (supports_features(superblock->feature_incompat)) {
+        print("ERROR:\tFeatrues are not supported\n");
+        printbin(supports_features(superblock->feature_incompat));
+        print("\n");
+        printbin(superblock->feature_incompat);
+        print("\n");
+        return;
+    }*/
+
     ext4_Filesystem* fs = init_filesystem(device, partition, superblock);
     list_directories(fs, fetch_inode(fs, 2));
     File* file = load_file(fs, (InodeCache*)0x0, "/bin/main.elf");
