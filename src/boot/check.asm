@@ -1,5 +1,12 @@
 bits 32
 
+global check_cpuid
+global check_multiboot
+global check_MSR
+global check_long_mode
+
+extern error
+
 section .boot
 ; check if multiboot2 magic number is correct
 check_multiboot:
@@ -73,3 +80,5 @@ check_long_mode:
 .no_long_mode:
     mov al, "3"
     jmp error
+
+section .note.GNU-stack

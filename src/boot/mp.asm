@@ -7,7 +7,13 @@ global count
 extern init_APIC
 extern halt
 extern mem_info
-extern write_hex_to_serial
+
+extern check_cpuid
+extern check_MSR
+extern check_long_mode
+extern enable_paging
+extern GDT.Pointer
+extern IDTP
 
 bits 16
 section .trampoline
@@ -110,3 +116,5 @@ align 16
 StackBottom:
     resb 4096
 StackTop:
+
+section .note.GNU-stack

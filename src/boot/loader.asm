@@ -4,15 +4,23 @@
 %define USER_CODE_SEG       0x0018
 %define USER_DATA_SEG       0x0020
 
-%include "src/boot/multiboot2.asm"
-%include "src/boot/mp.asm"
 global loader
-global IDT
 global GDT
 global TSS
-global irq_handlers
+global error
+global stack_top
+global interrupts_enabled
+global GDT.Pointer
+
 extern kernelmain
 extern printhex
+extern check_multiboot
+extern check_cpuid
+extern check_MSR
+extern check_long_mode
+extern set_up_page_tables
+extern enable_paging
+extern enable_interrupts
 bits 32
 
 section .boot
@@ -52,13 +60,6 @@ error:
     out dx, al
     hlt
 
-%include "src/boot/check.asm"
-%include "src/boot/paging.asm"
-%include "src/boot/interrupts.asm"
-%include "src/boot/apic.asm"
-%include "src/boot/user.asm"
-
-
 section .data
 GDT:
 .Null:
@@ -83,10 +84,6 @@ align 4
 .Pointer:
     dw $ - GDT - 1                    ; 16-bit Size (Limit) of GDT.
     dq GDT                            ; 64-bit Base Address of GDT
-IDTP:
-    dw 256*16-1
-    dq IDT
-
 TSS:
     dd 0
     dq ring0_stack_bottom
@@ -104,9 +101,6 @@ align 16
 ring0_stack_bottom:
     resb 4096
 ring0_stack_top:
-IDT:
-    resb 4096
-
 framebuffer:
     resb 4
 boot_info:

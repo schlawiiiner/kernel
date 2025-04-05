@@ -30,3 +30,5 @@ align 8
     dd 8
 
 header_end:
+
+section .note.GNU-stack

@@ -1,4 +1,12 @@
+%define CODE_SEG     0x0008
+%define DATA_SEG     0x0010
+
 bits 64
+
+global irq_handlers
+global enable_interrupts
+global IDTP
+
 extern division_error
 extern debug
 extern non_maskable_interrupt
@@ -26,6 +34,9 @@ extern vmm_communication_exception
 extern security_exception
 extern fpu_error_interrupt
 extern default_handler_func
+
+extern stack_top
+extern interrupts_enabled
 
 %macro PUSH_ALL_REGS 0
     push rdi
@@ -1983,3 +1994,17 @@ irq_handlers:
 	dq security_exception					; int 31
 	dq intel_reserved						; int 32
 	times 224 dq default_handler_func		; int 33 - 255
+
+
+section .data
+IDTP:
+    dw 256*16-1
+    dq IDT
+
+section .bss
+align 16
+IDT:
+    resb 4096
+
+
+section .note.GNU-stack

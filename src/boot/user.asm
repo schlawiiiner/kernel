@@ -21,3 +21,5 @@ jump_usermode:
 
 user_function:
 	jmp user_function
+
+section .note.GNU-stack

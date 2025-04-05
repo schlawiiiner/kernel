@@ -44,7 +44,7 @@ void crc32c_init(void) {
 uint32_t calculate_crc32(void* buffer, uint32_t size, uint32_t seed) {
     crc32_init();
     const uint8_t *data = buffer;
-    uint32_t crc = seed ^ 0xffffffff;
+    uint32_t crc = seed;
     for (uint32_t i = 0; i < size; i++) {
         crc ^= data[i];
         crc = (crc >> 8) ^ crc32_table[crc & 0xff];

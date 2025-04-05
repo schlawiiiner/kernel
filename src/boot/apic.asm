@@ -53,3 +53,5 @@ ioapic_list:
     resd 8      ; number global system interrupts
     resb 96     ; 96 global pins
     resb 4*2    ; 4 IOAPICS supported (see struct IOAPIC ioapic.c)
+
+section .note.GNU-stack

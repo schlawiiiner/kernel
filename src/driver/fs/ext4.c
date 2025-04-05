@@ -40,7 +40,7 @@ InodeCache* cache_inode(Inode* inode, uint64_t inode_number) {
             print("ERROR: Inode is beeing accessed right now");
             while(1);
         }
-        free(icache_l2[index], sizeof(InodeCache));
+        free((uint64_t)icache_l2[index], sizeof(InodeCache));
         icache_l2[index] = icache_l1[index];
     }
     icache_l1[index] = inode_cache;
@@ -159,7 +159,7 @@ InodeCache* find_inode(ext4_Filesystem* fs, InodeCache* inode, char* name) {
         uint64_t block = ((uint64_t)ee->start_hi << 32) | ee->start_lo;
         uint64_t sector = block_to_sector(fs, block);
         uint64_t buffer = malloc(fs->block_size);
-        read_lba(fs->device, sector, fs->sectors_per_block - 1, buffer);
+        read_lba(fs->device, sector, fs->sectors_per_block - 1, (void*)buffer);
         DirectoryEntry* entry = (DirectoryEntry*)buffer;
         for (int i = 0; i < (inode->link_count + 10); i++) {
             if (!entry->inode) {
@@ -205,7 +205,7 @@ void list_directories(ext4_Filesystem* fs, InodeCache* inode) {
         uint64_t block = ((uint64_t)ee->start_hi << 32) | ee->start_lo;
         uint64_t sector = block_to_sector(fs, block);
         uint64_t buffer = malloc(fs->block_size);
-        read_lba(fs->device, sector, fs->sectors_per_block - 1, buffer);
+        read_lba(fs->device, sector, fs->sectors_per_block - 1, (void*)buffer);
         DirectoryEntry* dir = (DirectoryEntry*)buffer;
         print("\n");
         uint64_t buffer_end = buffer + fs->block_size;
@@ -303,10 +303,10 @@ File* load_file(ext4_Filesystem* fs, InodeCache* inode, char* path) {
         uint64_t block = ((uint64_t)ee->start_hi << 32) | ee->start_lo;
         uint64_t sector = block_to_sector(fs, block);
         uint64_t buffer = malloc(fs->block_size);
-        read_lba(fs->device, sector, fs->block_size/fs->sector_size - 1, buffer);
+        read_lba(fs->device, sector, fs->block_size/fs->sector_size - 1, (void*)buffer);
 
         File* file_data = (File*)malloc(sizeof(File));
-        file_data->buffer = buffer;
+        file_data->buffer = (void*)buffer;
         file_data->size = fs->block_size;
         return file_data;
     }
@@ -364,6 +364,6 @@ void mount_filesystem(volatile PCI_DEV* device, PartitionEntry* partition) {
     list_directories(fs, fetch_inode(fs, 2));
     File* file = load_file(fs, (InodeCache*)0x0, "/bin/main.elf");
     uint8_t* buffer = file->buffer;
-    free(fs, sizeof(ext4_Filesystem));
+    free((uint64_t)fs, sizeof(ext4_Filesystem));
     free((uint64_t)superblock, sizeof(Superblock));
 }

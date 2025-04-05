@@ -482,7 +482,7 @@ void io_isr(uint64_t* rsp, uint64_t irq) {
 }
 
 
-void enable_interrupts(volatile PCI_DEV* device) {
+void nvme_enable_interrupts(volatile PCI_DEV* device) {
     if (msix_support(device)) {
         print("ERROR: NVMe Controller does not Support MSI-X\n");
         while(1);
@@ -519,7 +519,7 @@ void init_nvme_controller(volatile PCI_DEV* device) {
     nvme_cs->CP = (ControllerProperties*)(device->bars[0].base_address);
     
     // in qemu MSI-X interrupts must be enabled before admin queues are allocated, this is currently a qemu bug???
-    enable_interrupts(device);
+    nvme_enable_interrupts(device);
     // reset controller
     disable(device);
     configure_admin_queues(device);

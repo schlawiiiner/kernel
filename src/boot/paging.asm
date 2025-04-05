@@ -9,6 +9,8 @@ bits 32
 global p4_table
 global p3_table
 global p2_table
+global enable_paging
+global set_up_page_tables
 extern kernel_mmap          ; see mmap.c and memory.h and linker.ld
 
 section .boot
@@ -95,3 +97,5 @@ p2_table:
     resb 4096
 p2_table_high:
     resb 4092
+
+section .note.GNU-stack
